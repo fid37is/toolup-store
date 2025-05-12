@@ -1,4 +1,4 @@
-// next.config.js
+// next.config.js - Updated to allow Google Drive image domains
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
@@ -6,12 +6,21 @@ const nextConfig = {
         domains: [
             'drive.google.com',
             'lh3.googleusercontent.com',
-            'docs.google.com',
+            'googleusercontent.com'
+        ],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'drive.google.com',
+                pathname: '/**',
+            },
+            {
+                protocol: 'https',
+                hostname: '*.googleusercontent.com',
+                pathname: '/**',
+            },
         ],
     },
-    env: {
-        SITE_NAME: 'ToolUp Store',
-    },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

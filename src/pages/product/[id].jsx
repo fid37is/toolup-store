@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { getImageUrl } from '../../utils/driveService';
+import '../../styles/globals.css'
 
 export default function ProductDetail() {
     const router = useRouter();
