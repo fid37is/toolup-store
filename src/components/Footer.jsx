@@ -5,14 +5,14 @@ const Footer = () => {
     const currentYear = new Date().getFullYear();
 
     return (
-        <footer className="bg-gray-800 text-white mt-16">
+        <footer className="bg-primary-700 text-white mt-16">
             <div className="container mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
                     {/* Company Info */}
                     <div>
                         <h3 className="text-xl font-bold mb-4">ToolUp Store</h3>
                         <p className="text-gray-300 mb-4">
-                            Your trusted source for quality tools and equipment.
+                            Your trusted source for quality gadgets and phone accessories.
                         </p>
                         <p className="text-gray-300">
                             © {currentYear} ToolUp Store. All rights reserved.
@@ -82,7 +82,7 @@ const Footer = () => {
                                         d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                                     />
                                 </svg>
-                                <span>(123) 456-7890</span>
+                                <span>(234) 808 595-2266</span>
                             </li>
                             <li className="flex items-start">
                                 <svg
@@ -105,7 +105,7 @@ const Footer = () => {
                                         d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                                     />
                                 </svg>
-                                <span>123 Main Street<br />City, State 12345</span>
+                                <span>123 Main Street<br />Asaba, Delta State 320102</span>
                             </li>
                         </ul>
                     </div>
