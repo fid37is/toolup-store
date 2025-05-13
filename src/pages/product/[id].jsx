@@ -19,6 +19,10 @@ export default function ProductDetail() {
     const [addedToCartMessage, setAddedToCartMessage] = useState('');
     const [generatedDescription, setGeneratedDescription] = useState('');
 
+    const quantityNum = Number(product?.quantity || 0);
+    const isOutOfStock = quantityNum === 0;
+    const isLowStock = quantityNum > 0 && quantityNum <= 4;
+
     useEffect(() => {
         // Only fetch when we have an ID
         if (!id) {
@@ -38,7 +42,7 @@ export default function ProductDetail() {
                 const data = await response.json();
                 console.log('Product data received:', data);
                 setProduct(data);
-                
+
                 // Generate AI-like description based on product data
                 generateProductDescription(data);
             } catch (err) {
@@ -58,20 +62,20 @@ export default function ProductDetail() {
 
         // Get product details
         const { name, category, price } = productData;
-        
+
         // Array of possible description templates
         const descriptionTemplates = [
             `The ${name} is a premium quality ${category || 'tool'} designed for both professionals and enthusiasts. Featuring exceptional durability and performance, this ${price > 100 ? 'high-end' : 'affordable'} product will exceed your expectations while maintaining excellent value for money.`,
-            
+
             `Discover the versatility of our ${name}, a standout ${category || 'product'} that combines innovative design with practical functionality. Whether you're a seasoned professional or just starting out, this ${price > 100 ? 'investment-grade' : 'budget-friendly'} tool delivers reliable performance for all your projects.`,
-            
+
             `Meet the ${name} - the perfect addition to any ${category || 'toolbox'}. With its ergonomic design and precision engineering, this ${price > 100 ? 'professional-grade' : 'cost-effective'} solution offers unmatched performance and durability that will serve you for years to come.`,
-            
+
             `Engineered for excellence, the ${name} represents the pinnacle of ${category || 'tool'} design. Featuring premium materials and expert craftsmanship, this ${price > 100 ? 'professional' : 'accessible'} product combines power, precision, and reliability in one comprehensive package.`,
-            
+
             `The ${name} stands out in the ${category || 'tools'} market for its exceptional quality and attention to detail. This ${price > 100 ? 'premium' : 'value-oriented'} product has been designed with the end-user in mind, ensuring comfort, efficiency, and outstanding results every time.`
         ];
-        
+
         // Select a random description template
         const randomIndex = Math.floor(Math.random() * descriptionTemplates.length);
         setGeneratedDescription(descriptionTemplates[randomIndex]);
@@ -183,10 +187,10 @@ export default function ProductDetail() {
                 imageUrl: product.imageUrl,
                 quantity: quantity
             };
-            
+
             // Store this as the direct purchase item
             localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
-            
+
             // Navigate to direct checkout page
             router.push('/checkout?mode=direct');
         } catch (error) {
@@ -233,10 +237,6 @@ export default function ProductDetail() {
             </div>
         );
     }
-
-    // Calculate stock status
-    const isOutOfStock = product.stock === 0;
-    const isLowStock = product.stock > 0 && product.stock <= 5;
 
     return (
         <div className="flex min-h-screen flex-col">
@@ -294,7 +294,7 @@ export default function ProductDetail() {
                                     </span>
                                 ) : isLowStock ? (
                                     <span className="inline-block rounded-full bg-amber-100 px-4 py-1 text-sm font-medium text-amber-800">
-                                        Only {product.stock} left
+                                        Only {product.quantity} left
                                     </span>
                                 ) : (
                                     <span className="inline-block rounded-full bg-green-100 px-4 py-1 text-sm font-medium text-green-800">
@@ -344,7 +344,7 @@ export default function ProductDetail() {
                                     id="quantity"
                                     name="quantity"
                                     min="1"
-                                    max={product.stock || 1}
+                                    max={product.quantity || 1}
                                     value={quantity}
                                     onChange={handleQuantityChange}
                                     disabled={isOutOfStock}

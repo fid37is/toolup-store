@@ -13,7 +13,8 @@ export default async function handler(req, res) {
         const products = await response.json();
 
         // Find the product with the matching ID
-        const product = products.find(p => p.id === id);
+        const product = products.find(p => p.id.toString().toLowerCase() === id.toString().toLowerCase());
+
 
         if (!product) {
             return res.status(404).json({ error: 'Product not found' });
@@ -21,7 +22,8 @@ export default async function handler(req, res) {
 
         return res.status(200).json(product);
     } catch (error) {
-        console.error('API error fetching product:', error);
+        console.error('API error fetching product:', error);  // Add this
         return res.status(500).json({ error: 'Failed to fetch product' });
     }
+
 }
