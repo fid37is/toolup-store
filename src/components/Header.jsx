@@ -18,19 +18,23 @@ const Header = () => {
     };
 
     useEffect(() => {
-        // Fetch cart item count when component mounts and when cart modal closes
+        const fetchCartItemCount = () => {
+            if (typeof window === 'undefined') return;
+
+            try {
+                const cartData = localStorage.getItem('cart');
+                const cart = cartData ? JSON.parse(cartData) : [];
+                const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+                setCartItemCount(count);
+            } catch (err) {
+                console.error('Error parsing cart from localStorage:', err);
+            }
+        };
+
         fetchCartItemCount();
-        
-        // Also listen for cart updates from CartModal
-        const handleCartUpdate = () => {
-            fetchCartItemCount();
-        };
-        
-        window.addEventListener('cartUpdated', handleCartUpdate);
-        
-        return () => {
-            window.removeEventListener('cartUpdated', handleCartUpdate);
-        };
+
+        window.addEventListener('cartUpdated', fetchCartItemCount);
+        return () => window.removeEventListener('cartUpdated', fetchCartItemCount);
     }, []);
 
     const fetchCartItemCount = async () => {
@@ -113,14 +117,14 @@ const Header = () => {
 
                         {/* Cart Icon & Mobile Menu Button */}
                         <div className="flex items-center">
-                            
+
                             {/* Cart Button */}
                             <button
                                 className="relative p-2 mr-2 text-gray-700 hover:text-blue-600"
                                 onClick={toggleCart}
                                 aria-label="Open cart"
                             >
-                            <ShoppingCart />
+                                <ShoppingCart />
                                 {cartItemCount > 0 && (
                                     <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
                                         {cartItemCount}
