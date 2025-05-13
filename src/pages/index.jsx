@@ -1,16 +1,24 @@
-// src/pages/index.jsx - Fixed with proper error handling
+// src/pages/index.jsx - Updated with search, sort, and filter functionality
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { getImageUrl } from '../utils/driveService';
 
 export default function Home() {
     const [products, setProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    
+    // Search and filter states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [sortOption, setSortOption] = useState('');
+    const [categories, setCategories] = useState([]);
+    const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
+    const [inStockOnly, setInStockOnly] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -19,16 +27,94 @@ export default function Home() {
                 if (!res.ok) throw new Error('Failed to fetch');
                 const data = await res.json();
                 setProducts(data);
+                setFilteredProducts(data);
+                
+                // Extract unique categories
+                const uniqueCategories = [...new Set(data.map(product => product.category).filter(Boolean))];
+                setCategories(uniqueCategories);
+                
+                // Find min and max prices
+                if (data.length > 0) {
+                    const prices = data.map(p => parseFloat(p.price));
+                    setPriceRange({
+                        min: Math.floor(Math.min(...prices)),
+                        max: Math.ceil(Math.max(...prices))
+                    });
+                }
             } catch (err) {
                 console.error('Error loading products:', err);
                 setError(err);
             } finally {
-                setIsLoading(false); // Fixed: using setIsLoading instead of setLoading
+                setIsLoading(false);
             }
         };
 
         fetchData();
     }, []);
+
+    // Apply filters whenever dependencies change
+    useEffect(() => {
+        applyFilters();
+    }, [searchQuery, selectedCategory, sortOption, inStockOnly, products]);
+
+    const applyFilters = () => {
+        let result = [...products];
+        
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(product => 
+                product.name.toLowerCase().includes(query) || 
+                (product.description && product.description.toLowerCase().includes(query))
+            );
+        }
+        
+        // Apply category filter
+        if (selectedCategory) {
+            result = result.filter(product => product.category === selectedCategory);
+        }
+        
+        // Apply in-stock filter
+        if (inStockOnly) {
+            result = result.filter(product => product.stock > 0);
+        }
+        
+        // Apply sorting
+        if (sortOption === 'price-asc') {
+            result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+        } else if (sortOption === 'price-desc') {
+            result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+        } else if (sortOption === 'name-asc') {
+            result.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (sortOption === 'name-desc') {
+            result.sort((a, b) => b.name.localeCompare(a.name));
+        }
+        
+        setFilteredProducts(result);
+    };
+
+    const handleSearch = (e) => {
+        setSearchQuery(e.target.value);
+    };
+
+    const handleCategoryChange = (e) => {
+        setSelectedCategory(e.target.value);
+    };
+
+    const handleSortChange = (e) => {
+        setSortOption(e.target.value);
+    };
+
+    const handleInStockChange = (e) => {
+        setInStockOnly(e.target.checked);
+    };
+
+    const clearFilters = () => {
+        setSearchQuery('');
+        setSelectedCategory('');
+        setSortOption('');
+        setInStockOnly(false);
+    };
 
     if (isLoading) {
         return (
@@ -78,64 +164,157 @@ export default function Home() {
             <Header />
 
             <main className="container mx-auto flex-grow px-4 py-8">
-                <h1 className="mb-8 text-center text-3xl font-bold">Featured Products</h1>
 
-                {products.length === 0 ? (
-                    <div className="text-center">
-                        <p className="text-gray-600">No products available at this time.</p>
+                {/* Search and Filter Section */}
+                <div className="mb-8 rounded-lg bg-gray-50 p-4 shadow-sm">
+                    <div className="grid gap-4 md:grid-cols-5">
+                        <h1 className="mb-4 text-left text-2xl font-bold">Featured Products</h1>
+                        {/* Search */}
+                        <div className="md:col-span-2">
+                            {/* <label htmlFor="search" className="mb-1 block text-sm font-medium text-gray-700">
+                                Search Products
+                            </label> */}
+                            <div className="relative">
+                                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    id="search"
+                                    value={searchQuery}
+                                    onChange={handleSearch}
+                                    placeholder="Search for products..."
+                                    className="block w-full rounded-md border border-gray-300 bg-white p-2 pl-10 pr-3 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Category filter */}
+                        <div>
+                            {/* <label htmlFor="category" className="mb-1 block text-sm font-medium text-gray-700">
+                                Category
+                            </label> */}
+                            <select
+                                id="category"
+                                value={selectedCategory}
+                                onChange={handleCategoryChange}
+                                className="block w-full rounded-md border border-gray-300 bg-white p-2 text-sm"
+                            >
+                                <option value="">All Categories</option>
+                                {categories.map(category => (
+                                    <option key={category} value={category}>
+                                        {category}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Sort options */}
+                        <div>
+                            {/* <label htmlFor="sort" className="mb-1 block text-sm font-medium text-gray-700">
+                                Sort By
+                            </label> */}
+                            <select
+                                id="sort"
+                                value={sortOption}
+                                onChange={handleSortChange}
+                                className="block w-full rounded-md border border-gray-300 bg-white p-2 text-sm"
+                            >
+                                <option value="">Sort By</option>
+                                <option value="price-asc">Price: Low to High</option>
+                                <option value="price-desc">Price: High to Low</option>
+                                <option value="name-asc">Name: A to Z</option>
+                                <option value="name-desc">Name: Z to A</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Additional filters */}
+                    <div className="mt-4 flex items-center justify-between">
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                id="inStock"
+                                checked={inStockOnly}
+                                onChange={handleInStockChange}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                            />
+                            <label htmlFor="inStock" className="ml-2 text-sm text-gray-700">
+                                In Stock Only
+                            </label>
+                        </div>
+
+                        {/* Clear filters button */}
+                        <button
+                            onClick={clearFilters}
+                            className="rounded-md bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
+                        >
+                            Clear Filters
+                        </button>
+                    </div>
+                </div>
+
+                {/* Result count */}
+                <div className="mb-4 text-sm text-gray-600">
+                    Showing {filteredProducts.length} of {products.length} products
+                </div>
+
+                {filteredProducts.length === 0 ? (
+                    <div className="rounded-lg bg-gray-50 p-8 text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4 h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-gray-600">No products match your search criteria.</p>
+                        <button
+                            onClick={clearFilters}
+                            className="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                        >
+                            Clear Filters
+                        </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {products.map((product) => {
-                            const imageUrl = product.imageId ? getImageUrl(product.imageId) : '/placeholder-product.jpg';
-
-                            return (
-                                <Link key={product.id} href={`/product/${product.id}`} legacyBehavior>
-                                    <a className="block h-full">
-                                        <div className="h-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-                                            <div className="relative h-48 w-full bg-gray-100">
-                                                {/* Option 1: Use Next.js Image with unoptimized prop */}
-                                                <Image
-                                                    src={product.imageUrl}
-                                                    alt={product.name}
-                                                    className="object-contain"
-                                                    fill
-                                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                                    unoptimized={true} /* Add this line to bypass Next.js image optimization */
-                                                />
-
-                                                {/* Option 2: Use a regular img tag instead of Next.js Image if everything else fails */}
-                                                {/* 
-                        <img
-                            src={imageUrl}
-                            alt={product.name}
-                            className="h-full w-full object-contain" 
-                        />
-                        */}
-                                            </div>
-                                            <div className="p-4">
-                                                <h2 className="mb-2 text-lg font-medium text-gray-900">{product.name}</h2>
-                                                <p className="mb-2 text-sm text-gray-500">
-                                                    {product.category || 'Uncategorized'}
-                                                </p>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-lg font-bold">${parseFloat(product.price).toFixed(2)}</span>
-                                                    {product.stock === 0 ? (
-                                                        <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800">
-                                                            Out of Stock
-                                                        </span>
-                                                    ) : (
-                                                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
-                                                            In Stock
-                                                        </span>
-                                                    )}
-                                                </div>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                        {filteredProducts.map((product) => (
+                            <div key={product.id} className="h-full">
+                                <Link 
+                                    href={`/product/${product.id}`}
+                                    className="block h-full"
+                                >
+                                    <div className="h-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+                                        <div className="relative h-48 w-full bg-gray-100">
+                                            <Image
+                                                src={product.imageUrl || '/placeholder-product.jpg'}
+                                                alt={product.name}
+                                                className="object-contain"
+                                                fill
+                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                                unoptimized={true}
+                                            />
+                                        </div>
+                                        <div className="p-4">
+                                            <h2 className="mb-2 text-lg font-medium text-gray-900">{product.name}</h2>
+                                            <p className="mb-2 text-sm text-gray-500">
+                                                {product.category || 'Uncategorized'}
+                                            </p>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-lg font-bold">${parseFloat(product.price).toFixed(2)}</span>
+                                                {product.stock === 0 ? (
+                                                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800">
+                                                        Out of Stock
+                                                    </span>
+                                                ) : (
+                                                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
+                                                        In Stock
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
-                                    </a>
+                                    </div>
                                 </Link>
-                            );
-                        })}
+                            </div>
+                        ))}
                     </div>
                 )}
             </main>

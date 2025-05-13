@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/api/products.js
-import { fetchProducts } from '@/services/productService';
+import { fetchProducts } from '../../services/productService';
 
 export default async function handler(req, res) {
     try {
