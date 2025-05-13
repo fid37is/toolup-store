@@ -277,14 +277,14 @@ export default function Home() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    <div className="grid grid-cols-1 gap-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         {filteredProducts.map((product) => (
                             <div key={product.id} className="h-full">
                                 <Link
                                     href={`/product/${product.id}`}
                                     className="block h-full"
                                 >
-                                    <div className="h-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+                                    <div className="h-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg transition-shadow hover:shadow-md">
                                         <div className="relative h-48 w-full bg-gray-100">
                                             <Image
                                                 src={product.imageUrl || '/placeholder-product.jpg'}
