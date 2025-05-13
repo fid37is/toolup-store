@@ -1,13 +1,13 @@
-// src/components/CartModal.jsx - Fixed cart functionality with checkout modal
+// src/components/CartModal.jsx - Updated cart modal with direct checkout routing
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import CheckoutModal from './CheckoutModal';
+import { useRouter } from 'next/router';
 
 const CartModal = ({ isOpen, onClose }) => {
+    const router = useRouter();
     const [cartItems, setCartItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -56,9 +56,13 @@ const CartModal = ({ isOpen, onClose }) => {
     };
 
     const updateQuantity = async (productId, newQuantity) => {
-        if (newQuantity < 1) return;
-
         try {
+            // If quantity is zero or less, remove the item
+            if (newQuantity <= 0) {
+                await removeItem(productId);
+                return;
+            }
+
             // Update in localStorage first
             let updatedCart = [...cartItems];
             const itemIndex = updatedCart.findIndex(item => item.productId === productId);
@@ -128,7 +132,11 @@ const CartModal = ({ isOpen, onClose }) => {
     };
 
     const handleCheckout = () => {
-        setCheckoutModalOpen(true);
+        // Close the cart modal
+        onClose();
+        
+        // Navigate to checkout page
+        router.push('/checkout');
     };
 
     const calculateTotal = () => {
@@ -139,125 +147,110 @@ const CartModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <>
-            <div className="fixed inset-0 z-50 flex items-center justify-end bg-black bg-opacity-50 overflow-auto">
-                <div className="h-full w-full max-w-md bg-white shadow-lg flex flex-col animate-slide-in-right">
-                    <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                        <h2 className="text-xl font-bold">Your Cart</h2>
-                        <button
-                            onClick={onClose}
-                            className="text-gray-500 hover:text-gray-700"
-                            aria-label="Close cart"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black bg-opacity-50 overflow-auto">
+            <div className="h-full w-full max-w-md bg-white shadow-lg flex flex-col animate-slide-in-right">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                    <h2 className="text-xl font-bold">Your Cart</h2>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-500 hover:text-gray-700"
+                        aria-label="Close cart"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
-                    <div className="flex-grow overflow-y-auto p-4">
-                        {isLoading ? (
-                            <div className="flex justify-center items-center h-32">
-                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
-                            </div>
-                        ) : error ? (
-                            <div className="text-center text-red-600 p-4">
-                                Error loading cart: {error.message}
-                            </div>
-                        ) : cartItems.length === 0 ? (
-                            <div className="text-center p-8">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                                <p className="text-xl font-medium text-gray-600 mb-2">Your cart is empty</p>
-                                <p className="text-gray-500">Looks like you haven't added any products to your cart yet.</p>
-                            </div>
-                        ) : (
-                            <ul className="divide-y divide-gray-200">
-                                {cartItems.map((item) => (
-                                    <li key={item.productId} className="py-4">
-                                        <div className="flex space-x-4">
-                                            <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
-                                                <Image
-                                                    src={item.imageUrl || '/placeholder-product.jpg'}
-                                                    alt={item.name}
-                                                    fill
-                                                    sizes="80px"
-                                                    className="object-contain"
-                                                    unoptimized={true}
-                                                />
+                <div className="flex-grow overflow-y-auto p-4">
+                    {isLoading ? (
+                        <div className="flex justify-center items-center h-32">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                        </div>
+                    ) : error ? (
+                        <div className="text-center text-red-600 p-4">
+                            Error loading cart: {error.message}
+                        </div>
+                    ) : cartItems.length === 0 ? (
+                        <div className="text-center p-8">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            <p className="text-xl font-medium text-gray-600 mb-2">Your cart is empty</p>
+                            <p className="text-gray-500">Looks like you haven't added any products to your cart yet.</p>
+                        </div>
+                    ) : (
+                        <ul className="divide-y divide-gray-200">
+                            {cartItems.map((item) => (
+                                <li key={item.productId} className="py-4">
+                                    <div className="flex space-x-4">
+                                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                                            <Image
+                                                src={item.imageUrl || '/placeholder-product.jpg'}
+                                                alt={item.name}
+                                                fill
+                                                sizes="80px"
+                                                className="object-contain"
+                                                unoptimized={true}
+                                            />
+                                        </div>
+                                        <div className="flex flex-1 flex-col">
+                                            <div className="flex justify-between text-base font-medium text-gray-900">
+                                                <h3>{item.name}</h3>
+                                                <p className="ml-4">${parseFloat(item.price).toFixed(2)}</p>
                                             </div>
-                                            <div className="flex flex-1 flex-col">
-                                                <div className="flex justify-between text-base font-medium text-gray-900">
-                                                    <h3>{item.name}</h3>
-                                                    <p className="ml-4">${parseFloat(item.price).toFixed(2)}</p>
-                                                </div>
-                                                <div className="mt-2 flex items-center justify-between">
-                                                    <div className="flex items-center border rounded">
-                                                        <button
-                                                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                                                            className="px-2 py-1 text-gray-600 hover:bg-gray-100"
-                                                            aria-label="Decrease quantity"
-                                                        >
-                                                            -
-                                                        </button>
-                                                        <span className="px-3">{item.quantity}</span>
-                                                        <button
-                                                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                                                            className="px-2 py-1 text-gray-600 hover:bg-gray-100"
-                                                            aria-label="Increase quantity"
-                                                        >
-                                                            +
-                                                        </button>
-                                                    </div>
+                                            <div className="mt-2 flex items-center justify-between">
+                                                <div className="flex items-center border rounded">
                                                     <button
-                                                        onClick={() => removeItem(item.productId)}
-                                                        className="font-medium text-red-600 hover:text-red-500"
+                                                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                                                        className="px-2 py-1 text-gray-600 hover:bg-gray-100"
+                                                        aria-label="Decrease quantity"
                                                     >
-                                                        Remove
+                                                        -
+                                                    </button>
+                                                    <span className="px-3">{item.quantity}</span>
+                                                    <button
+                                                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                                                        className="px-2 py-1 text-gray-600 hover:bg-gray-100"
+                                                        aria-label="Increase quantity"
+                                                    >
+                                                        +
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-
-                    {cartItems.length > 0 && (
-                        <div className="border-t border-gray-200 p-4">
-                            <div className="flex justify-between text-base font-medium text-gray-900 mb-4">
-                                <p>Subtotal</p>
-                                <p>${calculateTotal()}</p>
-                            </div>
-                            <button
-                                onClick={handleCheckout}
-                                className="w-full rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-blue-700"
-                            >
-                                Checkout
-                            </button>
-                            <div className="mt-3 flex justify-center text-center text-sm text-gray-500">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="font-medium text-blue-600 hover:text-blue-500"
-                                >
-                                    Continue Shopping
-                                </button>
-                            </div>
-                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
                     )}
                 </div>
-            </div>
 
-            {/* Checkout Modal */}
-            <CheckoutModal 
-                isOpen={checkoutModalOpen} 
-                onClose={() => setCheckoutModalOpen(false)} 
-                cartItems={cartItems}
-            />
-        </>
+                {cartItems.length > 0 && (
+                    <div className="border-t border-gray-200 p-4">
+                        <div className="flex justify-between text-base font-medium text-gray-900 mb-4">
+                            <p>Subtotal</p>
+                            <p>${calculateTotal()}</p>
+                        </div>
+                        <button
+                            onClick={handleCheckout}
+                            className="w-full rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-blue-700"
+                        >
+                            Checkout
+                        </button>
+                        <div className="mt-3 flex justify-center text-center text-sm text-gray-500">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="font-medium text-blue-600 hover:text-blue-500"
+                            >
+                                Continue Shopping
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 };
 

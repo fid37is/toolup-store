@@ -1,4 +1,4 @@
-// src/pages/product/[id].jsx - Fixed product page with working cart functionality
+// src/pages/product/[id].jsx - Product page with direct checkout routing
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -6,7 +6,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import CheckoutModal from '../../components/CheckoutModal';
 import '../../styles/globals.css'
 
 export default function ProductDetail() {
@@ -17,8 +16,8 @@ export default function ProductDetail() {
     const [quantity, setQuantity] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showCheckoutModal, setShowCheckoutModal] = useState(false);
     const [addedToCartMessage, setAddedToCartMessage] = useState('');
+    const [generatedDescription, setGeneratedDescription] = useState('');
 
     useEffect(() => {
         // Only fetch when we have an ID
@@ -39,6 +38,9 @@ export default function ProductDetail() {
                 const data = await response.json();
                 console.log('Product data received:', data);
                 setProduct(data);
+                
+                // Generate AI-like description based on product data
+                generateProductDescription(data);
             } catch (err) {
                 console.error(`Failed to fetch product ${id}:`, err);
                 setError(err);
@@ -50,22 +52,35 @@ export default function ProductDetail() {
         fetchProduct();
     }, [id]);
 
+    // Function to generate AI-like description
+    const generateProductDescription = (productData) => {
+        if (!productData) return;
+
+        // Get product details
+        const { name, category, price } = productData;
+        
+        // Array of possible description templates
+        const descriptionTemplates = [
+            `The ${name} is a premium quality ${category || 'tool'} designed for both professionals and enthusiasts. Featuring exceptional durability and performance, this ${price > 100 ? 'high-end' : 'affordable'} product will exceed your expectations while maintaining excellent value for money.`,
+            
+            `Discover the versatility of our ${name}, a standout ${category || 'product'} that combines innovative design with practical functionality. Whether you're a seasoned professional or just starting out, this ${price > 100 ? 'investment-grade' : 'budget-friendly'} tool delivers reliable performance for all your projects.`,
+            
+            `Meet the ${name} - the perfect addition to any ${category || 'toolbox'}. With its ergonomic design and precision engineering, this ${price > 100 ? 'professional-grade' : 'cost-effective'} solution offers unmatched performance and durability that will serve you for years to come.`,
+            
+            `Engineered for excellence, the ${name} represents the pinnacle of ${category || 'tool'} design. Featuring premium materials and expert craftsmanship, this ${price > 100 ? 'professional' : 'accessible'} product combines power, precision, and reliability in one comprehensive package.`,
+            
+            `The ${name} stands out in the ${category || 'tools'} market for its exceptional quality and attention to detail. This ${price > 100 ? 'premium' : 'value-oriented'} product has been designed with the end-user in mind, ensuring comfort, efficiency, and outstanding results every time.`
+        ];
+        
+        // Select a random description template
+        const randomIndex = Math.floor(Math.random() * descriptionTemplates.length);
+        setGeneratedDescription(descriptionTemplates[randomIndex]);
+    };
+
     const handleQuantityChange = (e) => {
         const value = parseInt(e.target.value);
         if (!isNaN(value) && value > 0) {
             setQuantity(value);
-        }
-    };
-
-    const incrementQuantity = () => {
-        if (product && quantity < product.stock) {
-            setQuantity(quantity + 1);
-        }
-    };
-
-    const decrementQuantity = () => {
-        if (quantity > 1) {
-            setQuantity(quantity - 1);
         }
     };
 
@@ -153,22 +168,31 @@ export default function ProductDetail() {
         }
     };
 
-    const handleBuyNow = async () => {
-        if (product) {
-            // Create a single item object with product details and quantity
-            const singleItem = {
-                ...product,
+    const handleBuyNow = () => {
+        if (!product || !id) {
+            console.error("Product or product ID is missing");
+            return;
+        }
+
+        try {
+            // Create a checkout item for this single product
+            const checkoutItem = {
                 productId: id,
+                name: product.name,
+                price: product.price,
+                imageUrl: product.imageUrl,
                 quantity: quantity
             };
-
-            // Open the checkout modal with this single item
-            setShowCheckoutModal(true);
+            
+            // Store this as the direct purchase item
+            localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
+            
+            // Navigate to direct checkout page
+            router.push('/checkout?mode=direct');
+        } catch (error) {
+            console.error('Error processing direct purchase:', error);
+            alert('Failed to proceed to checkout. Please try again.');
         }
-    };
-
-    const closeCheckoutModal = () => {
-        setShowCheckoutModal(false);
     };
 
     if (isLoading) {
@@ -218,7 +242,7 @@ export default function ProductDetail() {
         <div className="flex min-h-screen flex-col">
             <Head>
                 <title>{product.name} | ToolUp Store</title>
-                <meta name="description" content={product.description || `Buy ${product.name} at ToolUp Store`} />
+                <meta name="description" content={generatedDescription || `Buy ${product.name} at ToolUp Store`} />
             </Head>
 
             <Header />
@@ -296,12 +320,11 @@ export default function ProductDetail() {
                             </div>
                         )}
 
-                        {product.description && (
-                            <div className="mb-6">
-                                <h2 className="mb-2 text-lg font-medium">Description</h2>
-                                <p className="text-gray-700">{product.description}</p>
-                            </div>
-                        )}
+                        {/* AI-Generated Description */}
+                        <div className="mb-6">
+                            <h2 className="mb-2 text-lg font-medium">Description</h2>
+                            <p className="text-gray-700">{generatedDescription || product.description || "Product description unavailable."}</p>
+                        </div>
 
                         {product.specs && (
                             <div className="mb-6">
@@ -310,20 +333,12 @@ export default function ProductDetail() {
                             </div>
                         )}
 
-                        {/* Quantity Selector */}
+                        {/* Quantity Selector - Simplified without increment/decrement buttons */}
                         <div className="mb-6">
                             <label htmlFor="quantity" className="mb-2 block text-sm font-medium text-gray-700">
                                 Quantity
                             </label>
                             <div className="flex items-center">
-                                <button
-                                    type="button"
-                                    onClick={decrementQuantity}
-                                    disabled={quantity <= 1 || isOutOfStock}
-                                    className="h-10 w-10 rounded-l-lg border border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    -
-                                </button>
                                 <input
                                     type="number"
                                     id="quantity"
@@ -333,16 +348,8 @@ export default function ProductDetail() {
                                     value={quantity}
                                     onChange={handleQuantityChange}
                                     disabled={isOutOfStock}
-                                    className="h-10 w-16 border-y border-gray-300 bg-white py-2 text-center text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                    className="h-10 w-24 rounded-lg border border-gray-300 bg-white py-2 px-3 text-center text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={incrementQuantity}
-                                    disabled={isOutOfStock || (product.stock && quantity >= product.stock)}
-                                    className="h-10 w-10 rounded-r-lg border border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    +
-                                </button>
                             </div>
                         </div>
 
@@ -373,13 +380,6 @@ export default function ProductDetail() {
                     </div>
                 </div>
             </main>
-
-            {/* Checkout Modal for Buy Now */}
-            <CheckoutModal
-                isOpen={showCheckoutModal}
-                onClose={closeCheckoutModal}
-                singleItem={product ? { ...product, productId: id, quantity } : null}
-            />
 
             <Footer />
         </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CartModal from './CartModal';
+import { ShoppingCart } from 'lucide-react';
 
 const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -112,24 +113,6 @@ const Header = () => {
 
                         {/* Cart Icon & Mobile Menu Button */}
                         <div className="flex items-center">
-                            {/* Search - Optional feature */}
-                            <div className="hidden md:block mr-4">
-                                <form className="flex items-center">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Search products..." 
-                                        className="px-3 py-1 border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    />
-                                    <button 
-                                        type="submit" 
-                                        className="bg-blue-600 text-white p-1 rounded-r-md hover:bg-blue-700"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
-                                    </button>
-                                </form>
-                            </div>
                             
                             {/* Cart Button */}
                             <button
@@ -137,9 +120,7 @@ const Header = () => {
                                 onClick={toggleCart}
                                 aria-label="Open cart"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
+                            <ShoppingCart />
                                 {cartItemCount > 0 && (
                                     <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
                                         {cartItemCount}
@@ -184,25 +165,6 @@ const Header = () => {
                     {mobileMenuOpen && (
                         <nav className="md:hidden border-t border-gray-200 py-4">
                             <ul className="space-y-4">
-                                <li>
-                                    <div className="px-4 pb-3">
-                                        <form className="flex items-center">
-                                            <input 
-                                                type="text" 
-                                                placeholder="Search products..." 
-                                                className="px-3 py-1 w-full border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                            />
-                                            <button 
-                                                type="submit" 
-                                                className="bg-blue-600 text-white p-1 rounded-r-md hover:bg-blue-700"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                                </svg>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </li>
                                 <li>
                                     <Link
                                         href="/"

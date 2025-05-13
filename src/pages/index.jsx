@@ -74,9 +74,20 @@ export default function Home() {
             result = result.filter(product => product.category === selectedCategory);
         }
         
-        // Apply in-stock filter
+        // Apply in-stock filter - FIXED: Check if stock is greater than 0 or truthy
         if (inStockOnly) {
-            result = result.filter(product => product.stock > 0);
+            result = result.filter(product => {
+                // Handle both numeric stock values and boolean/string "In Stock" indicators
+                if (typeof product.stock === 'number') {
+                    return product.stock > 0;
+                } else if (typeof product.stock === 'boolean') {
+                    return product.stock;
+                } else if (typeof product.stock === 'string') {
+                    return product.stock.toLowerCase() === 'in stock' || product.stock !== '0';
+                }
+                // If stock is undefined or null, check if the UI shows "In Stock"
+                return product.stock !== 0 && product.stock !== '0' && product.stock !== false;
+            });
         }
         
         // Apply sorting
@@ -171,9 +182,6 @@ export default function Home() {
                         <h1 className="mb-4 text-left text-2xl font-bold">Featured Products</h1>
                         {/* Search */}
                         <div className="md:col-span-2">
-                            {/* <label htmlFor="search" className="mb-1 block text-sm font-medium text-gray-700">
-                                Search Products
-                            </label> */}
                             <div className="relative">
                                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,9 +201,6 @@ export default function Home() {
 
                         {/* Category filter */}
                         <div>
-                            {/* <label htmlFor="category" className="mb-1 block text-sm font-medium text-gray-700">
-                                Category
-                            </label> */}
                             <select
                                 id="category"
                                 value={selectedCategory}
@@ -213,9 +218,6 @@ export default function Home() {
 
                         {/* Sort options */}
                         <div>
-                            {/* <label htmlFor="sort" className="mb-1 block text-sm font-medium text-gray-700">
-                                Sort By
-                            </label> */}
                             <select
                                 id="sort"
                                 value={sortOption}
