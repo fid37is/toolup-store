@@ -11,7 +11,7 @@ export default function Home() {
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
     // Search and filter states
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
@@ -28,11 +28,11 @@ export default function Home() {
                 const data = await res.json();
                 setProducts(data);
                 setFilteredProducts(data);
-                
+
                 // Extract unique categories
                 const uniqueCategories = [...new Set(data.map(product => product.category).filter(Boolean))];
                 setCategories(uniqueCategories);
-                
+
                 // Find min and max prices
                 if (data.length > 0) {
                     const prices = data.map(p => parseFloat(p.price));
@@ -59,37 +59,37 @@ export default function Home() {
 
     const applyFilters = () => {
         let result = [...products];
-        
+
         // Apply search filter
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
-            result = result.filter(product => 
-                product.name.toLowerCase().includes(query) || 
+            result = result.filter(product =>
+                product.name.toLowerCase().includes(query) ||
                 (product.description && product.description.toLowerCase().includes(query))
             );
         }
-        
+
         // Apply category filter
         if (selectedCategory) {
             result = result.filter(product => product.category === selectedCategory);
         }
-        
+
         // Apply in-stock filter - FIXED: Check if stock is greater than 0 or truthy
         if (inStockOnly) {
             result = result.filter(product => {
                 // Handle both numeric stock values and boolean/string "In Stock" indicators
-                if (typeof product.stock === 'number') {
-                    return product.stock > 0;
-                } else if (typeof product.stock === 'boolean') {
-                    return product.stock;
-                } else if (typeof product.stock === 'string') {
-                    return product.stock.toLowerCase() === 'in stock' || product.stock !== '0';
+                if (typeof product.quantity === 'number') {
+                    return product.quantity > 0;
+                } else if (typeof product.quantity === 'boolean') {
+                    return product.quantity;
+                } else if (typeof product.quantity === 'string') {
+                    return product.quantity.toLowerCase() === 'in stock' || product.quantity !== '0';
                 }
                 // If stock is undefined or null, check if the UI shows "In Stock"
-                return product.stock !== 0 && product.stock !== '0' && product.stock !== false;
+                return product.quantity !== 0 && product.quantity !== '0' && product.quantity !== false;
             });
         }
-        
+
         // Apply sorting
         if (sortOption === 'price-asc') {
             result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
@@ -100,7 +100,7 @@ export default function Home() {
         } else if (sortOption === 'name-desc') {
             result.sort((a, b) => b.name.localeCompare(a.name));
         }
-        
+
         setFilteredProducts(result);
     };
 
@@ -280,7 +280,7 @@ export default function Home() {
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         {filteredProducts.map((product) => (
                             <div key={product.id} className="h-full">
-                                <Link 
+                                <Link
                                     href={`/product/${product.id}`}
                                     className="block h-full"
                                 >
@@ -302,7 +302,7 @@ export default function Home() {
                                             </p>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-lg font-bold">${parseFloat(product.price).toFixed(2)}</span>
-                                                {product.stock === 0 ? (
+                                                {Number(product.quantity) === 0 ? (
                                                     <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800">
                                                         Out of Stock
                                                     </span>
@@ -312,6 +312,7 @@ export default function Home() {
                                                     </span>
                                                 )}
                                             </div>
+
                                         </div>
                                     </div>
                                 </Link>
