@@ -1,226 +1,192 @@
 // src/utils/nigeriaLocations.js
 
-/**
- * Utility functions for fetching Nigeria location data (states, LGAs, towns)
- * with fallback data for when the API is unreachable
- */
-
-const API_BASE_URL = 'http://state-lga-api.ordutech.com/api';
-
-// Fallback data in case the API is unreachable - only Delta state
-const FALLBACK_STATES = [
-    { code: 'DE', name: 'Delta' } // Prioritize Delta State (business location)
+// This is a simplified version - in production, you might use a database or API for this data
+const nigerianStates = [
+    { code: 'AB', name: 'Abia' },
+    { code: 'AD', name: 'Adamawa' },
+    { code: 'AK', name: 'Akwa Ibom' },
+    { code: 'AN', name: 'Anambra' },
+    { code: 'BA', name: 'Bauchi' },
+    { code: 'BY', name: 'Bayelsa' },
+    { code: 'BE', name: 'Benue' },
+    { code: 'BO', name: 'Borno' },
+    { code: 'CR', name: 'Cross River' },
+    { code: 'DE', name: 'Delta' },
+    { code: 'EB', name: 'Ebonyi' },
+    { code: 'ED', name: 'Edo' },
+    { code: 'EK', name: 'Ekiti' },
+    { code: 'EN', name: 'Enugu' },
+    { code: 'FC', name: 'FCT' },
+    { code: 'GO', name: 'Gombe' },
+    { code: 'IM', name: 'Imo' },
+    { code: 'JI', name: 'Jigawa' },
+    { code: 'KD', name: 'Kaduna' },
+    { code: 'KN', name: 'Kano' },
+    { code: 'KT', name: 'Katsina' },
+    { code: 'KE', name: 'Kebbi' },
+    { code: 'KO', name: 'Kogi' },
+    { code: 'KW', name: 'Kwara' },
+    { code: 'LA', name: 'Lagos' },
+    { code: 'NA', name: 'Nasarawa' },
+    { code: 'NI', name: 'Niger' },
+    { code: 'OG', name: 'Ogun' },
+    { code: 'ON', name: 'Ondo' },
+    { code: 'OS', name: 'Osun' },
+    { code: 'OY', name: 'Oyo' },
+    { code: 'PL', name: 'Plateau' },
+    { code: 'RI', name: 'Rivers' },
+    { code: 'SO', name: 'Sokoto' },
+    { code: 'TA', name: 'Taraba' },
+    { code: 'YO', name: 'Yobe' },
+    { code: 'ZA', name: 'Zamfara' }
 ];
 
-// Fallback LGAs for Delta State only
-const FALLBACK_LGAS = {
+// Example LGA data (simplified for Delta State)
+const lgasByState = {
     'DE': [
         { name: 'Warri South' },
-        { name: 'Ughelli North' },
         { name: 'Uvwie' },
         { name: 'Sapele' },
-        { name: 'Ethiope East' },
-        { name: 'Ethiope West' },
-        { name: 'Isoko North' },
-        { name: 'Isoko South' },
-        { name: 'Ndokwa East' },
-        { name: 'Ndokwa West' },
-        { name: 'Okpe' },
-        { name: 'Oshimili North' },
-        { name: 'Oshimili South' },
-        { name: 'Patani' },
         { name: 'Udu' },
-        { name: 'Ukwuani' },
         { name: 'Warri North' },
         { name: 'Warri South West' },
+        { name: 'Isoko North' },
+        { name: 'Isoko South' },
+        { name: 'Ughelli North' },
+        { name: 'Ughelli South' },
+        { name: 'Ethiope East' },
+        { name: 'Ethiope West' },
+        { name: 'Okpe' },
+        { name: 'Ndokwa East' },
+        { name: 'Ndokwa West' },
         { name: 'Bomadi' },
         { name: 'Burutu' },
+        { name: 'Patani' },
         { name: 'Aniocha North' },
         { name: 'Aniocha South' },
+        { name: 'Oshimili North' },
+        { name: 'Oshimili South' },
         { name: 'Ika North East' },
         { name: 'Ika South' },
-    ]
+        { name: 'Ukwuani' }
+    ],
+    // Add other states as needed or implement API-based fetching
 };
 
-// Fallback towns for Delta State only
-const FALLBACK_TOWNS = {
-    'DE': [
-        { name: 'Warri', lga: 'Warri South' },
-        { name: 'Effurun', lga: 'Uvwie' },
-        { name: 'Sapele', lga: 'Sapele' },
-        { name: 'Ughelli', lga: 'Ughelli North' },
-        { name: 'Asaba', lga: 'Oshimili South' },
-        { name: 'Agbor', lga: 'Ika South' },
-        { name: 'Abraka', lga: 'Ethiope East' },
-        { name: 'Oleh', lga: 'Isoko South' },
-        { name: 'Ozoro', lga: 'Isoko North' },
-        { name: 'Kwale', lga: 'Ndokwa West' },
-        { name: 'Obiaruku', lga: 'Ukwuani' },
-        { name: 'Oghara', lga: 'Ethiope West' },
-        { name: 'Orerokpe', lga: 'Okpe' },
-        { name: 'Patani', lga: 'Patani' },
-        { name: 'Burutu', lga: 'Burutu' },
-        { name: 'Otu-Jeremi', lga: 'Ughelli South' },
-        { name: 'Ogwashi-Uku', lga: 'Aniocha South' },
-        { name: 'Issele-Uku', lga: 'Aniocha North' },
-        { name: 'Owa-Oyibu', lga: 'Ika North East' },
-        { name: 'Bomadi', lga: 'Bomadi' },
-    ]
+// Example towns data (simplified for some Delta LGAs)
+const townsByStateAndLGA = {
+    'DE': {
+        'Warri South': [
+            { name: 'Warri' },
+            { name: 'Ugborikoko' },
+            { name: 'Ubeji' },
+            { name: 'Aladja' }
+        ],
+        'Uvwie': [
+            { name: 'Effurun' },
+            { name: 'Ekpan' },
+            { name: 'Enerhen' }
+        ],
+        'Sapele': [
+            { name: 'Sapele' },
+            { name: 'Amukpe' }
+        ],
+        'Udu': [
+            { name: 'Ovwian' },
+            { name: 'Aladja' },
+            { name: 'Orhuwhorun' }
+        ],
+        // Add other LGAs as needed
+    }
+    // Add other states as needed
 };
 
-/**
- * Fetches all Nigerian states with fallback functionality
- * @returns {Promise<Array>} Array of state objects
- */
+// Fetch all Nigerian states
 export const fetchAllStates = async () => {
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
-        const response = await fetch(`${API_BASE_URL}/`, {
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch states');
-        }
-
-        return await response.json();
+        // In a real app, this might be an API call
+        return nigerianStates;
     } catch (error) {
-        console.warn('Error fetching states, using fallback data:', error);
-        return FALLBACK_STATES;
+        console.error('Error fetching states:', error);
+        return [];
     }
 };
 
-/**
- * Fetches all LGAs for a specific state with fallback functionality
- * @param {string} stateCode - The state code
- * @returns {Promise<Array>} Array of LGA objects
- */
+// Fetch LGAs for a specific state
 export const fetchLGAs = async (stateCode) => {
-    if (!stateCode) return [];
-
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
-        // Convert state code to state name for API compatibility
-        const stateName = convertStateCodeToName(stateCode);
-        if (!stateName) throw new Error(`Invalid state code: ${stateCode}`);
-
-        const response = await fetch(`${API_BASE_URL}/${stateName.toLowerCase()}/`, {
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch LGAs for state: ${stateCode}`);
-        }
-
-        return await response.json();
+        // In a real app, this might be an API call
+        return lgasByState[stateCode] || [];
     } catch (error) {
-        console.warn(`Error fetching LGAs for state ${stateCode}, using fallback data:`, error);
-        return FALLBACK_LGAS[stateCode] || [];
+        console.error(`Error fetching LGAs for state ${stateCode}:`, error);
+        return [];
     }
 };
 
-/**
- * Fetches all towns for a specific state with fallback functionality
- * @param {string} stateCode - The state code
- * @param {string} lgaName - Optional LGA name to filter towns
- * @returns {Promise<Array>} Array of town objects
- */
-export const fetchTowns = async (stateCode, lgaName = null) => {
-    if (!stateCode) return [];
-
+// Fetch towns for a specific state
+export const fetchTowns = async (stateCode) => {
     try {
-        // For now, the API doesn't provide towns directly
-        // This could be updated if the API adds town endpoints in the future
-        throw new Error('Towns API not available');
+        // In a real app, this might be an API call
+        const allTowns = [];
+        const stateData = townsByStateAndLGA[stateCode];
+
+        if (stateData) {
+            Object.keys(stateData).forEach(lga => {
+                const lgaTowns = stateData[lga].map(town => ({
+                    ...town,
+                    lga
+                }));
+                allTowns.push(...lgaTowns);
+            });
+        }
+
+        return allTowns;
     } catch (error) {
-        console.warn(`Error fetching towns for state ${stateCode}, using fallback data:`, error);
-        let fallbackTowns = FALLBACK_TOWNS[stateCode] || [];
-
-        // Filter by LGA if provided
-        if (lgaName) {
-            return filterTownsByLGA(fallbackTowns, lgaName);
-        }
-
-        return fallbackTowns;
+        console.error(`Error fetching towns for state ${stateCode}:`, error);
+        return [];
     }
 };
 
-/**
- * Helper function to filter towns by LGA
- * @param {Array} towns - Array of town objects
- * @param {string} lgaName - LGA name to filter by
- * @returns {Array} Filtered array of town objects
- */
-export const filterTownsByLGA = (towns, lgaName) => {
-    if (!towns || !towns.length || !lgaName) return [];
-
-    return towns.filter(town => {
-        // Check if the town has an explicit LGA property
-        if (town.lga && town.lga.toLowerCase() === lgaName.toLowerCase()) {
-            return true;
-        }
-
-        // Check if the town name contains the LGA name or vice versa
-        const townNameLower = town.name.toLowerCase();
-        const lgaNameLower = lgaName.toLowerCase();
-
-        return townNameLower.includes(lgaNameLower) ||
-            lgaNameLower.includes(townNameLower);
-    });
+// Filter towns by LGA
+export const filterTownsByLGA = (towns, lga) => {
+    return towns.filter(town => town.lga === lga);
 };
 
-/**
- * Helper function to convert state code to state name
- * @param {string} stateCode - The state code
- * @returns {string|null} The state name or null if not found
- */
-const convertStateCodeToName = (stateCode) => {
-    // This is a simplified mapping - in a real implementation you would need
-    // a comprehensive mapping of state codes to state names
-    const stateMapping = {
-        'DE': 'Delta',
-        // Add more states as needed
-    };
-    
-    return stateMapping[stateCode] || null;
-};
+// Calculate shipping fee based on location
+export const calculateShippingFee = (location) => {
+    const { state, lga, town } = location;
 
-/**
- * Helper function to determine shipping fee based on location
- * @param {object} locationData - Object containing selected location data
- * @returns {number} Shipping fee in Naira
- */
-export const calculateShippingFee = (locationData) => {
-    const { state, lga, town } = locationData;
+    // Base shipping fee
+    let fee = 3500;
 
-    if (!state) return 3500; // Default shipping fee
+    // Premium locations (higher shipping fee)
+    if (state === 'LA') { // Lagos
+        fee = 4000;
+    }
 
-    // Default shipping fee for locations outside specific areas
-    let shippingFee = 3500;
+    // Discounted locations
+    if (state === 'DE') { // Delta State
+        fee = 3000;
 
-    // If Delta state is selected (business location)
-    if (state === 'DE') {
-        // Reduced fee for Delta
-        shippingFee = 1000;
+        // Special LGAs in Delta State
+        if (['Warri South', 'Uvwie', 'Sapele', 'Udu'].includes(lga)) {
+            fee = 2500;
 
-        // Further reduction for specific areas in Delta
-        if (lga && ['Warri South', 'Uvwie', 'Sapele', 'Udu'].includes(lga)) {
-            shippingFee = 800;
-        }
-
-        // Special rates for specific towns in Delta
-        if (town === 'Warri' || town === 'Effurun') {
-            shippingFee = 500; // Lowest fee for business headquarters area
+            // Specific towns with lowest rate
+            if (town === 'Warri' || town === 'Effurun') {
+                fee = 2000;
+            }
         }
     }
 
-    return shippingFee;
+    return fee;
+};
+
+// eslint-disable-next-line import/no-anonymous-default-export
+export default {
+    fetchAllStates,
+    fetchLGAs,
+    fetchTowns,
+    filterTownsByLGA,
+    calculateShippingFee
 };
