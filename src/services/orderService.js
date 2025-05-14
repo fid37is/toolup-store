@@ -25,7 +25,7 @@ const createJwtClient = () => {
 const authorizeJwtClient = async () => {
     if (!jwtClient) jwtClient = createJwtClient();
     return new Promise((resolve, reject) => {
-        jwtClient.authorize((err) => {
+        jwtClient.authorize(err => {
             if (err) {
                 console.error('JWT Authorization failed:', err);
                 reject(err);
@@ -38,83 +38,93 @@ const authorizeJwtClient = async () => {
 
 const getSheets = () => google.sheets({ version: 'v4', auth: jwtClient });
 
-const ORDER_HEADERS = [
-    'Order ID', 'Customer Name', 'Customer Email', 'Phone', 'Address',
-    'Items', 'Total', 'Status', 'Created At'
-];
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const ORDERS_RANGE = 'Orders!A:K';
 
-// 🟩 Create new order
-export const createOrder = async (orderData) => {
+export const placeOrder = async (orderData) => {
     await authorizeJwtClient();
     const sheets = getSheets();
 
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    const range = 'Orders!A:I';
-
-    const values = [
-        ORDER_HEADERS.map((h) => orderData[h] || '')
+    const newRow = [
+        orderData.id,
+        orderData.customerName || '',
+        orderData.customerEmail || '',
+        orderData.phone || '',
+        orderData.address || '',
+        orderData.city || '',
+        orderData.items || '',
+        orderData.total || '',
+        orderData.status || 'Processing',
+        new Date().toISOString(),
+        orderData.note || ''
     ];
 
     await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values }
-    });
-
-    return { success: true };
-};
-
-// 🟨 Fetch a specific order by ID
-export const fetchOrderById = async (orderId) => {
-    await authorizeJwtClient();
-    const sheets = getSheets();
-
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    const range = 'Orders!A:I';
-    const res = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range });
-
-    const rows = res.data.values;
-    const headers = rows[0];
-    const dataRows = rows.slice(1);
-
-    const found = dataRows.find((row) => row[0] === orderId);
-    if (!found) return null;
-
-    const order = {};
-    headers.forEach((h, i) => {
-        order[h] = found[i] || '';
-    });
-
-    return order;
-};
-
-// 🟥 Cancel an order (set status to Cancelled)
-export const cancelOrderById = async (orderId) => {
-    await authorizeJwtClient();
-    const sheets = getSheets();
-
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    const range = 'Orders!A:I';
-    const res = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range });
-
-    const rows = res.data.values;
-    const headers = rows[0];
-    const dataRows = rows.slice(1);
-
-    const orderIndex = dataRows.findIndex((row) => row[0] === orderId);
-    if (orderIndex === -1) return { success: false, message: 'Order not found' };
-
-    const rowNumber = orderIndex + 2; // +2 to account for header + 1-indexing
-
-    await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `Orders!H${rowNumber}`, // Status column = H
+        spreadsheetId: SHEET_ID,
+        range: ORDERS_RANGE,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-            values: [['Cancelled']]
+            values: [newRow]
         }
     });
 
     return { success: true };
+};
+
+export const fetchOrders = async () => {
+    await authorizeJwtClient();
+    const sheets = getSheets();
+
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: ORDERS_RANGE
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) return [];
+
+    const headers = rows[0];
+    return rows.slice(1).map((row) => {
+        const obj = {};
+        headers.forEach((h, i) => {
+            obj[h] = row[i] || '';
+        });
+        return obj;
+    });
+};
+
+export const fetchOrderById = async (id) => {
+    const all = await fetchOrders();
+    return all.find(o => o.id === id) || null;
+};
+
+export const cancelOrderById = async (id) => {
+    await authorizeJwtClient();
+    const sheets = getSheets();
+
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: ORDERS_RANGE
+    });
+
+    const rows = response.data.values;
+    const headers = rows[0];
+    const idIndex = headers.indexOf('id');
+    const statusIndex = headers.indexOf('status');
+
+    const targetIndex = rows.findIndex((row, i) => i > 0 && row[idIndex] === id);
+    if (targetIndex === -1) return { success: false, message: 'Order not found' };
+
+    rows[targetIndex][statusIndex] = 'Cancelled';
+
+    await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `Orders!A${targetIndex + 1}:K${targetIndex + 1}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: [rows[targetIndex]]
+        }
+    });
+
+    return { success: true, message: 'Order cancelled' };
 };

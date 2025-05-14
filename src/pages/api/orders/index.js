@@ -1,38 +1,20 @@
-import { getGoogleSheetsClient } from '@/lib/googleSheets';
-
-const SHEET_ID = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_ID;
-const ORDERS_SHEET_NAME = 'Orders';
+import { placeOrder, fetchOrders } from '@/services/orderService';
 
 export default async function handler(req, res) {
-    if (req.method !== 'GET') {
-        return res.status(405).json({ message: 'Method not allowed' });
-    }
-
     try {
-        const sheets = await getGoogleSheetsClient();
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SHEET_ID,
-            range: ORDERS_SHEET_NAME,
-        });
+        if (req.method === 'POST') {
+            const result = await placeOrder(req.body);
+            return res.status(200).json(result);
+        }
 
-        const [header, ...rows] = response.data.values || [];
-        const orders = rows.map(row => {
-            const obj = {};
-            header.forEach((key, index) => {
-                obj[key] = row[index] || '';
-            });
-            return obj;
-        });
+        if (req.method === 'GET') {
+            const orders = await fetchOrders();
+            return res.status(200).json(orders);
+        }
 
-        // Optional filtering by ?email=
-        const { email } = req.query;
-        const filtered = email
-            ? orders.filter(order => order.userEmail === email)
-            : orders;
-
-        res.status(200).json({ orders: filtered });
-    } catch (error) {
-        console.error('Error fetching orders:', error);
-        res.status(500).json({ message: 'Failed to fetch orders' });
+        return res.status(405).json({ message: 'Method Not Allowed' });
+    } catch (err) {
+        console.error('Order API error:', err);
+        res.status(500).json({ message: 'Server error' });
     }
 }
