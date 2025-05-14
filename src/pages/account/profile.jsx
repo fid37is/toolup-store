@@ -33,6 +33,15 @@ const ProfilePage = () => {
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-8">
+            <button
+                onClick={() => window.history.back()}
+                className="sticky top-4 z-10 mb-4 inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+            >
+                <svg className="h-5 w-5 mr-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+            </button>
             <h1 className="text-3xl font-bold mb-8 text-gray-800">My Profile</h1>
 
             <div className="bg-white rounded-lg shadow-md overflow-hidden">

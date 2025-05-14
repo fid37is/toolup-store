@@ -5,8 +5,17 @@ const AccountSettingsPage = () => {
     const [activeTab, setActiveTab] = useState('profile');
 
     return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-            <h1 className="text-2xl font-bold mb-6">Account Settings</h1>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+            <button
+                onClick={() => window.history.back()}
+                className="sticky top-4 z-10 mb-4 inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
+            >
+                <svg className="h-5 w-5 mr-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+            </button>
+            <h1 className="text-3xl font-bold mb-8 text-gray-800">Settings</h1>
 
             <div className="flex flex-col md:flex-row gap-6">
                 {/* Settings Sidebar */}
@@ -17,8 +26,8 @@ const AccountSettingsPage = () => {
                                 <button
                                     onClick={() => setActiveTab('profile')}
                                     className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'profile'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     <User className={`w-5 h-5 mr-3 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-500'}`} />
@@ -29,8 +38,8 @@ const AccountSettingsPage = () => {
                                 <button
                                     onClick={() => setActiveTab('email')}
                                     className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'email'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     <Mail className={`w-5 h-5 mr-3 ${activeTab === 'email' ? 'text-blue-600' : 'text-gray-500'}`} />
@@ -41,8 +50,8 @@ const AccountSettingsPage = () => {
                                 <button
                                     onClick={() => setActiveTab('password')}
                                     className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'password'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     <Lock className={`w-5 h-5 mr-3 ${activeTab === 'password' ? 'text-blue-600' : 'text-gray-500'}`} />
@@ -53,8 +62,8 @@ const AccountSettingsPage = () => {
                                 <button
                                     onClick={() => setActiveTab('notifications')}
                                     className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'notifications'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     <Bell className={`w-5 h-5 mr-3 ${activeTab === 'notifications' ? 'text-blue-600' : 'text-gray-500'}`} />
@@ -65,8 +74,8 @@ const AccountSettingsPage = () => {
                                 <button
                                     onClick={() => setActiveTab('preferences')}
                                     className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'preferences'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     <Globe className={`w-5 h-5 mr-3 ${activeTab === 'preferences' ? 'text-blue-600' : 'text-gray-500'}`} />
@@ -77,8 +86,8 @@ const AccountSettingsPage = () => {
                                 <button
                                     onClick={() => setActiveTab('security')}
                                     className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'security'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     <Shield className={`w-5 h-5 mr-3 ${activeTab === 'security' ? 'text-blue-600' : 'text-gray-500'}`} />

@@ -159,7 +159,7 @@ export default function Settings() {
                                 name="name"
                                 value={userData.name}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="mt-1 block w-full rounded border-gray-300 shadow-sm  focus:border-accent-600 focus:ring-accent-500"
                             />
                         </div>
 
@@ -173,7 +173,7 @@ export default function Settings() {
                                 name="email"
                                 value={userData.email}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-accent-600 focus:ring-accent-500"
                             />
                         </div>
 
@@ -187,7 +187,7 @@ export default function Settings() {
                                 name="phone"
                                 value={userData.phone}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-accent-600 focus:ring-accent-500"
                             />
                         </div>
 
@@ -205,7 +205,7 @@ export default function Settings() {
                                         name="address.street"
                                         value={userData.address.street}
                                         onChange={handleInputChange}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm  focus:border-accent-600 focus:ring-accent-500"
                                     />
                                 </div>
 
@@ -219,7 +219,7 @@ export default function Settings() {
                                         name="address.city"
                                         value={userData.address.city}
                                         onChange={handleInputChange}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm  focus:border-accent-600 focus:ring-accent-500"
                                     />
                                 </div>
 
@@ -233,7 +233,7 @@ export default function Settings() {
                                         name="address.state"
                                         value={userData.address.state}
                                         onChange={handleInputChange}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm  focus:border-accent-600 focus:ring-accent-500"
                                     />
                                 </div>
 
@@ -247,7 +247,7 @@ export default function Settings() {
                                         name="address.country"
                                         value={userData.address.country}
                                         onChange={handleInputChange}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm  focus:border-accent-600 focus:ring-accent-500"
                                     />
                                 </div>
 
@@ -261,7 +261,7 @@ export default function Settings() {
                                         name="address.zipCode"
                                         value={userData.address.zipCode}
                                         onChange={handleInputChange}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm  focus:border-accent-600 focus:ring-accent-500"
                                     />
                                 </div>
                             </div>
@@ -272,7 +272,8 @@ export default function Settings() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''
+                                    className={`inline-flex justify-center rounded-md border border-transparent bg-primary-700 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-1
+                                        focus:ring-primary-700" focus:ring-offset-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''
                                         }`}
                                 >
                                     {isLoading ? 'Saving...' : 'Save Changes'}
@@ -293,7 +294,7 @@ export default function Settings() {
                                 id="currentPassword"
                                 name="currentPassword"
                                 required
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-accent-600 focus:ring-accent-500"
                             />
                         </div>
 
@@ -307,7 +308,7 @@ export default function Settings() {
                                 name="newPassword"
                                 required
                                 minLength="6"
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-accent-600 focus:ring-accent-500"
                             />
                             <p className="mt-1 text-xs text-gray-500">
                                 Password must be at least 6 characters long
@@ -324,7 +325,7 @@ export default function Settings() {
                                 name="confirmPassword"
                                 required
                                 minLength="6"
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-accent-600 focus:ring-accent-500"
                             />
                         </div>
 
@@ -333,7 +334,7 @@ export default function Settings() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''
+                                    className={`inline-flex justify-center rounded-md border border-transparent bg-primary-700 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-1 focus:ring-accent-500 focus:ring-offset-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''
                                         }`}
                                 >
                                     {isLoading ? 'Updating...' : 'Update Password'}
@@ -356,7 +357,7 @@ export default function Settings() {
                                             name="order_updates"
                                             type="checkbox"
                                             defaultChecked
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            className="h-4 w-4 rounded border-gray-300  focus:border-accent-600 focus:ring-accent-500"
                                         />
                                     </div>
                                     <div className="ml-3 text-sm">
@@ -374,7 +375,7 @@ export default function Settings() {
                                             name="promotions"
                                             type="checkbox"
                                             defaultChecked
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            className="h-4 w-4 rounded border-gray-300  focus:border-accent-600 focus:ring-accent-500"
                                         />
                                     </div>
                                     <div className="ml-3 text-sm">
@@ -391,7 +392,7 @@ export default function Settings() {
                                             id="product_updates"
                                             name="product_updates"
                                             type="checkbox"
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            className="h-4 w-4 rounded border-gray-300  focus:border-accent-600 focus:ring-accent-500"
                                         />
                                     </div>
                                     <div className="ml-3 text-sm">
@@ -408,7 +409,7 @@ export default function Settings() {
                             <div className="flex justify-end">
                                 <button
                                     type="button"
-                                    className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    className="inline-flex justify-center rounded-md border border-transparent bg-primary-700 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-1 focus:ring-accent-500 focus:ring-offset-2"
                                 >
                                     Save Preferences
                                 </button>
@@ -435,8 +436,17 @@ export default function Settings() {
             <Header />
 
             <main className="container mx-auto flex-grow px-4 py-8">
-                <div className="mx-auto max-w-5xl">
-                    <h1 className="mb-6 text-2xl font-bold text-gray-900 sm:text-3xl">Account Settings</h1>
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    <button
+                        onClick={() => window.history.back()}
+                        className="sticky top-4 z-10 mb-4 inline-flex items-center text-primary-500 hover:text-primary-700 font-medium"
+                    >
+                        <svg className="h-5 w-5 mr-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back
+                    </button>
+                    <h1 className="text-3xl font-bold mb-8 text-gray-800">Account Settings</h1>
 
                     {successMessage && (
                         <div className="mb-6 rounded-md bg-green-50 p-4">
@@ -473,7 +483,7 @@ export default function Settings() {
                             <nav className="space-y-1" aria-label="Settings">
                                 <button
                                     onClick={() => setActiveTab('profile')}
-                                    className={`flex w-full items-center px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'profile' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                                    className={`flex w-full items-center px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'profile' ? 'bg-blue-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'
                                         }`}
                                 >
                                     <User className="mr-3 h-5 w-5" />
@@ -482,7 +492,7 @@ export default function Settings() {
 
                                 <button
                                     onClick={() => setActiveTab('security')}
-                                    className={`flex w-full items-center px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'security' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                                    className={`flex w-full items-center px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'security' ? 'bg-blue-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'
                                         }`}
                                 >
                                     <Lock className="mr-3 h-5 w-5" />
@@ -491,7 +501,7 @@ export default function Settings() {
 
                                 <button
                                     onClick={() => setActiveTab('notifications')}
-                                    className={`flex w-full items-center px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'notifications' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                                    className={`flex w-full items-center px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'notifications' ? 'bg-blue-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'
                                         }`}
                                 >
                                     <Bell className="mr-3 h-5 w-5" />
