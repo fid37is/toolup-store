@@ -5,11 +5,13 @@
  * with fallback data for when the API is unreachable
  */
 
-const API_BASE_URL = 'http://state-lga-api.ordutech.com/api';
+const DEFAULT_API_DOMAIN = 'state-lga-api.ordutech.com';
+const API_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https' : 'http';
+const API_BASE_URL = process.env.NEXT_PUBLIC_LGA_API_URL || `${API_PROTOCOL}://${DEFAULT_API_DOMAIN}/api`;
 
-// Fallback data in case the API is unreachable - only Delta state
+// Fallback data (Delta state only)
 const FALLBACK_STATES = [
-    { code: 'DE', name: 'Delta' } // Prioritize Delta State (business location)
+    { code: 'DE', name: 'Delta' }
 ];
 
 // Fallback LGAs for Delta State only
@@ -75,7 +77,7 @@ const FALLBACK_TOWNS = {
 export const fetchAllStates = async () => {
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const response = await fetch(`${API_BASE_URL}/`, {
             signal: controller.signal
@@ -83,9 +85,7 @@ export const fetchAllStates = async () => {
 
         clearTimeout(timeoutId);
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch states');
-        }
+        if (!response.ok) throw new Error('Failed to fetch states');
 
         return await response.json();
     } catch (error) {
@@ -94,19 +94,14 @@ export const fetchAllStates = async () => {
     }
 };
 
-/**
- * Fetches all LGAs for a specific state with fallback functionality
- * @param {string} stateCode - The state code
- * @returns {Promise<Array>} Array of LGA objects
- */
+// Fetch LGAs by state with fallback
 export const fetchLGAs = async (stateCode) => {
     if (!stateCode) return [];
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        // Convert state code to state name for API compatibility
         const stateName = convertStateCodeToName(stateCode);
         if (!stateName) throw new Error(`Invalid state code: ${stateCode}`);
 
@@ -116,9 +111,7 @@ export const fetchLGAs = async (stateCode) => {
 
         clearTimeout(timeoutId);
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch LGAs for state: ${stateCode}`);
-        }
+        if (!response.ok) throw new Error(`Failed to fetch LGAs for state: ${stateCode}`);
 
         return await response.json();
     } catch (error) {
@@ -127,98 +120,50 @@ export const fetchLGAs = async (stateCode) => {
     }
 };
 
-/**
- * Fetches all towns for a specific state with fallback functionality
- * @param {string} stateCode - The state code
- * @param {string} lgaName - Optional LGA name to filter towns
- * @returns {Promise<Array>} Array of town objects
- */
+// Fetch towns by state/LGA with fallback
 export const fetchTowns = async (stateCode, lgaName = null) => {
     if (!stateCode) return [];
 
     try {
-        // For now, the API doesn't provide towns directly
-        // This could be updated if the API adds town endpoints in the future
         throw new Error('Towns API not available');
     } catch (error) {
         console.warn(`Error fetching towns for state ${stateCode}, using fallback data:`, error);
         let fallbackTowns = FALLBACK_TOWNS[stateCode] || [];
-
-        // Filter by LGA if provided
-        if (lgaName) {
-            return filterTownsByLGA(fallbackTowns, lgaName);
-        }
-
+        if (lgaName) return filterTownsByLGA(fallbackTowns, lgaName);
         return fallbackTowns;
     }
 };
 
-/**
- * Helper function to filter towns by LGA
- * @param {Array} towns - Array of town objects
- * @param {string} lgaName - LGA name to filter by
- * @returns {Array} Filtered array of town objects
- */
 export const filterTownsByLGA = (towns, lgaName) => {
-    if (!towns || !towns.length || !lgaName) return [];
-
+    if (!towns?.length || !lgaName) return [];
     return towns.filter(town => {
-        // Check if the town has an explicit LGA property
-        if (town.lga && town.lga.toLowerCase() === lgaName.toLowerCase()) {
-            return true;
-        }
-
-        // Check if the town name contains the LGA name or vice versa
+        if (town.lga?.toLowerCase() === lgaName.toLowerCase()) return true;
         const townNameLower = town.name.toLowerCase();
         const lgaNameLower = lgaName.toLowerCase();
-
-        return townNameLower.includes(lgaNameLower) ||
-            lgaNameLower.includes(townNameLower);
+        return townNameLower.includes(lgaNameLower) || lgaNameLower.includes(townNameLower);
     });
 };
 
-/**
- * Helper function to convert state code to state name
- * @param {string} stateCode - The state code
- * @returns {string|null} The state name or null if not found
- */
 const convertStateCodeToName = (stateCode) => {
-    // This is a simplified mapping - in a real implementation you would need
-    // a comprehensive mapping of state codes to state names
-    const stateMapping = {
-        'DE': 'Delta',
-        // Add more states as needed
-    };
-    
+    const stateMapping = { 'DE': 'Delta' };
     return stateMapping[stateCode] || null;
 };
 
-/**
- * Helper function to determine shipping fee based on location
- * @param {object} locationData - Object containing selected location data
- * @returns {number} Shipping fee in Naira
- */
 export const calculateShippingFee = (locationData) => {
     const { state, lga, town } = locationData;
+    if (!state) return 3500;
 
-    if (!state) return 3500; // Default shipping fee
-
-    // Default shipping fee for locations outside specific areas
     let shippingFee = 3500;
 
-    // If Delta state is selected (business location)
     if (state === 'DE') {
-        // Reduced fee for Delta
         shippingFee = 1000;
 
-        // Further reduction for specific areas in Delta
-        if (lga && ['Warri South', 'Uvwie', 'Sapele', 'Udu'].includes(lga)) {
+        if (['Warri South', 'Uvwie', 'Sapele', 'Udu'].includes(lga)) {
             shippingFee = 800;
         }
 
-        // Special rates for specific towns in Delta
-        if (town === 'Warri' || town === 'Effurun') {
-            shippingFee = 500; // Lowest fee for business headquarters area
+        if (['Warri', 'Effurun'].includes(town)) {
+            shippingFee = 500;
         }
     }
 
