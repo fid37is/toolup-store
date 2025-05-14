@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CartModal from './CartModal';
-import { ShoppingCart, LogOut, User, DollarSign } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
 import { FaWhatsapp } from 'react-icons/fa';
+import UserAvatarDropdown from './UserAvatarDropdown';
 
 const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [cartOpen, setCartOpen] = useState(false);
     const [cartItemCount, setCartItemCount] = useState(0);
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     const toggleMobileMenu = () => {
         setMobileMenuOpen(!mobileMenuOpen);
@@ -17,10 +17,6 @@ const Header = () => {
 
     const toggleCart = () => {
         setCartOpen(!cartOpen);
-    };
-
-    const toggleUserMenu = () => {
-        setUserMenuOpen(!userMenuOpen);
     };
 
     useEffect(() => {
@@ -80,35 +76,8 @@ const Header = () => {
                                 <li>
                                     <Link href="/contact" className="text-gray-700 hover:text-blue-600">Contact</Link>
                                 </li>
-                                <li className="relative">
-                                    <button
-                                        onClick={toggleUserMenu}
-                                        className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 focus:outline-none"
-                                    >
-                                        <Image
-                                            src="/public/fav 1.pn   g"
-                                            alt="User"
-                                            width={32}
-                                            height={32}
-                                            className="rounded-full"
-                                        />
-                                    </button>
-                                    {userMenuOpen && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-                                            <Link href="/profile" className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
-                                                <User className="w-4 h-4 mr-2" /> Profile Settings
-                                            </Link>
-                                            <div className="flex items-center px-4 py-2 text-sm text-gray-500">
-                                                <DollarSign className="w-4 h-4 mr-2" /> NGN
-                                            </div>
-                                            <button
-                                                onClick={() => alert('Logging out...')}
-                                                className="w-full text-left flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
-                                            >
-                                                <LogOut className="w-4 h-4 mr-2" /> Logout
-                                            </button>
-                                        </div>
-                                    )}
+                                <li>
+                                    <UserAvatarDropdown />
                                 </li>
                             </ul>
                         </nav>
@@ -162,6 +131,9 @@ const Header = () => {
                                 </li>
                                 <li>
                                     <Link href="/contact" className="block px-4 py-2 text-gray-700 hover:text-blue-600" onClick={() => setMobileMenuOpen(false)}>Contact</Link>
+                                </li>
+                                <li className="px-4 py-2">
+                                    <UserAvatarDropdown />
                                 </li>
                             </ul>
                         </nav>
