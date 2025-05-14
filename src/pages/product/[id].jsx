@@ -1,4 +1,4 @@
-// src/pages/product/[id].jsx - Product page with direct checkout routing
+// src/pages/product/[id].jsx - Product page with auth check integration
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -6,11 +6,20 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
+import AuthCheckModal from '../../components/AuthCheckModal';
+import useAuthCheck from '../../hooks/useAuthCheck';
 import '../../styles/globals.css'
 
 export default function ProductDetail() {
     const router = useRouter();
     const { id } = router.query;
+    const { 
+        isAuthenticated, 
+        isAuthCheckModalOpen, 
+        initiateAuthCheck, 
+        handleContinueAsGuest, 
+        closeAuthCheckModal 
+    } = useAuthCheck();
 
     const [product, setProduct] = useState(null);
     const [quantity, setQuantity] = useState(1);
@@ -191,8 +200,9 @@ export default function ProductDetail() {
             // Store this as the direct purchase item
             localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
 
-            // Navigate to direct checkout page
-            router.push('/checkout?mode=direct');
+            // Initiate auth check instead of direct navigation
+            initiateAuthCheck('/checkout?mode=direct');
+            
         } catch (error) {
             console.error('Error processing direct purchase:', error);
             alert('Failed to proceed to checkout. Please try again.');
@@ -382,6 +392,14 @@ export default function ProductDetail() {
             </main>
 
             <Footer />
+            
+            {/* Auth Check Modal */}
+            <AuthCheckModal 
+                isOpen={isAuthCheckModalOpen}
+                onClose={closeAuthCheckModal}
+                onContinueAsGuest={handleContinueAsGuest}
+                redirectPath="/checkout?mode=direct"
+            />
         </div>
     );
 }

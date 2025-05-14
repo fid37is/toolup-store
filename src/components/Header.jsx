@@ -1,8 +1,7 @@
-// src/components/Header.jsx - Fixed with proper cart count handling
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CartModal from './CartModal';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, LogOut, User, DollarSign } from 'lucide-react';
 import Image from 'next/image';
 import { FaWhatsapp } from 'react-icons/fa';
 
@@ -10,6 +9,7 @@ const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [cartOpen, setCartOpen] = useState(false);
     const [cartItemCount, setCartItemCount] = useState(0);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     const toggleMobileMenu = () => {
         setMobileMenuOpen(!mobileMenuOpen);
@@ -17,6 +17,10 @@ const Header = () => {
 
     const toggleCart = () => {
         setCartOpen(!cartOpen);
+    };
+
+    const toggleUserMenu = () => {
+        setUserMenuOpen(!userMenuOpen);
     };
 
     useEffect(() => {
@@ -39,49 +43,15 @@ const Header = () => {
         return () => window.removeEventListener('cartUpdated', fetchCartItemCount);
     }, []);
 
-    const fetchCartItemCount = async () => {
-        try {
-            // Try to get count from API first
-            try {
-                const response = await fetch('/api/cart/count');
-                if (response.ok) {
-                    const data = await response.json();
-                    setCartItemCount(data.count);
-                    return;
-                }
-            } catch (err) {
-                console.log('API count fetch failed, falling back to localStorage');
-            }
-
-            // Fall back to localStorage if API fails
-            let count = 0;
-            try {
-                const cartData = localStorage.getItem('cart');
-                if (cartData) {
-                    const cart = JSON.parse(cartData);
-                    count = cart.reduce((sum, item) => sum + item.quantity, 0);
-                }
-            } catch (err) {
-                console.error('Error calculating cart count:', err);
-            }
-
-            setCartItemCount(count);
-        } catch (error) {
-            console.error('Failed to fetch cart count:', error);
-            setCartItemCount(0); // Set to 0 as fallback
-        }
-    };
-
     return (
         <>
             <header className="sticky top-0 z-10 bg-white">
                 <div className="container mx-auto px-4">
                     <div className="flex h-16 items-center justify-between">
-                        {/* Logo */}
                         <Link href="/" className="flex items-center">
                             <div className="flex items-center space-x-2">
                                 <Image
-                                    src="/fav 2.png" // ✅ Replace with actual image path
+                                    src="/fav 2.png"
                                     alt="ToolUp Store Logo"
                                     width={45}
                                     height={45}
@@ -91,9 +61,8 @@ const Header = () => {
                             </div>
                         </Link>
 
-                        {/* Desktop Navigation */}
                         <nav className="hidden md:block">
-                            <ul className="flex space-x-8">
+                            <ul className="flex space-x-8 items-center">
                                 <li>
                                     <a
                                         href="https://wa.me/+2348085952266"
@@ -106,28 +75,45 @@ const Header = () => {
                                     </a>
                                 </li>
                                 <li>
-                                    <Link
-                                        href="/"
-                                        className="text-gray-700 hover:text-blue-600"
-                                    >
-                                        Home
-                                    </Link>
+                                    <Link href="/" className="text-gray-700 hover:text-blue-600">Home</Link>
                                 </li>
                                 <li>
-                                    <Link
-                                        href="/contact"
-                                        className="text-gray-700 hover:text-blue-600"
+                                    <Link href="/contact" className="text-gray-700 hover:text-blue-600">Contact</Link>
+                                </li>
+                                <li className="relative">
+                                    <button
+                                        onClick={toggleUserMenu}
+                                        className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 focus:outline-none"
                                     >
-                                        Contact
-                                    </Link>
+                                        <Image
+                                            src="/public/fav 1.pn   g"
+                                            alt="User"
+                                            width={32}
+                                            height={32}
+                                            className="rounded-full"
+                                        />
+                                    </button>
+                                    {userMenuOpen && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                                            <Link href="/profile" className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+                                                <User className="w-4 h-4 mr-2" /> Profile Settings
+                                            </Link>
+                                            <div className="flex items-center px-4 py-2 text-sm text-gray-500">
+                                                <DollarSign className="w-4 h-4 mr-2" /> NGN
+                                            </div>
+                                            <button
+                                                onClick={() => alert('Logging out...')}
+                                                className="w-full text-left flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+                                            >
+                                                <LogOut className="w-4 h-4 mr-2" /> Logout
+                                            </button>
+                                        </div>
+                                    )}
                                 </li>
                             </ul>
                         </nav>
 
-                        {/* Cart Icon & Mobile Menu Button */}
                         <div className="flex items-center">
-
-                            {/* Cart Button */}
                             <button
                                 className="relative p-2 mr-2 text-gray-700 hover:text-blue-600"
                                 onClick={toggleCart}
@@ -141,40 +127,22 @@ const Header = () => {
                                 )}
                             </button>
 
-                            {/* Mobile Menu Button */}
                             <button
                                 className="md:hidden p-2"
                                 onClick={toggleMobileMenu}
                                 aria-label="Toggle menu"
                             >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    className="h-6 w-6"
-                                >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="h-6 w-6">
                                     {mobileMenuOpen ? (
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     ) : (
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M4 6h16M4 12h16M4 18h16"
-                                        />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                                     )}
                                 </svg>
                             </button>
                         </div>
                     </div>
 
-                    {/* Mobile Navigation */}
                     {mobileMenuOpen && (
                         <nav className="md:hidden border-t border-gray-200 py-4">
                             <ul className="space-y-4">
@@ -190,22 +158,10 @@ const Header = () => {
                                     </a>
                                 </li>
                                 <li>
-                                    <Link
-                                        href="/"
-                                        className="block px-4 py-2 text-gray-700 hover:text-blue-600"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                    >
-                                        Home
-                                    </Link>
+                                    <Link href="/" className="block px-4 py-2 text-gray-700 hover:text-blue-600" onClick={() => setMobileMenuOpen(false)}>Home</Link>
                                 </li>
                                 <li>
-                                    <Link
-                                        href="/contact"
-                                        className="block px-4 py-2 text-gray-700 hover:text-blue-600"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                    >
-                                        Contact
-                                    </Link>
+                                    <Link href="/contact" className="block px-4 py-2 text-gray-700 hover:text-blue-600" onClick={() => setMobileMenuOpen(false)}>Contact</Link>
                                 </li>
                             </ul>
                         </nav>
@@ -213,7 +169,6 @@ const Header = () => {
                 </div>
             </header>
 
-            {/* Cart Modal */}
             <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} />
         </>
     );

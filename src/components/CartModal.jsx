@@ -1,10 +1,20 @@
-// src/components/CartModal.jsx - Updated cart modal with direct checkout routing
+// src/components/CartModal.jsx - Simple fix for modal switching
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
+import AuthCheckModal from './AuthCheckModal';
+import useAuthCheck from '../hooks/useAuthCheck';
 
 const CartModal = ({ isOpen, onClose }) => {
     const router = useRouter();
+    const { 
+        isAuthenticated, 
+        isAuthCheckModalOpen, 
+        initiateAuthCheck, 
+        handleContinueAsGuest, 
+        closeAuthCheckModal 
+    } = useAuthCheck();
+    
     const [cartItems, setCartItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -132,11 +142,10 @@ const CartModal = ({ isOpen, onClose }) => {
     };
 
     const handleCheckout = () => {
-        // Close the cart modal
+        // Close the cart modal AFTER the auth check is initiated
+        // This ensures the auth modal appears and the cart disappears in sequence
+        initiateAuthCheck('/checkout');
         onClose();
-        
-        // Navigate to checkout page
-        router.push('/checkout');
     };
 
     const calculateTotal = () => {
