@@ -6,10 +6,10 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CheckoutAuthFlow from '../components/CheckoutAuthFlow';
 import Image from 'next/image';
-import { 
-    fetchAllStates, 
-    fetchLGAs, 
-    fetchTowns, 
+import {
+    fetchAllStates,
+    fetchLGAs,
+    fetchTowns,
     calculateShippingFee,
     filterTownsByLGA
 } from '../utils/nigeriaLocations';
@@ -110,16 +110,16 @@ export default function Checkout() {
                 setLgas([]);
                 return;
             }
-            
+
             setLoading(prev => ({ ...prev, lgas: true }));
             const lgasData = await fetchLGAs(formData.state);
             setLgas(lgasData);
             setLoading(prev => ({ ...prev, lgas: false }));
-            
+
             // Clear selected LGA when state changes
             setFormData(prev => ({ ...prev, lga: '', town: '' }));
         };
-        
+
         loadLGAs();
     }, [formData.state]);
 
@@ -130,22 +130,22 @@ export default function Checkout() {
                 setTowns([]);
                 return;
             }
-            
+
             setLoading(prev => ({ ...prev, towns: true }));
-            
+
             // First get all towns for the state
             const stateTowns = await fetchTowns(formData.state);
-            
+
             // Then filter them by LGA
             const filteredTowns = filterTownsByLGA(stateTowns, formData.lga);
-            
+
             setTowns(filteredTowns);
             setLoading(prev => ({ ...prev, towns: false }));
-            
+
             // Clear selected town when LGA changes
             setFormData(prev => ({ ...prev, town: '' }));
         };
-        
+
         loadTowns();
     }, [formData.state, formData.lga]);
 
@@ -166,7 +166,7 @@ export default function Checkout() {
     const total = subtotal + tax + shippingFee;
 
     // Dollar to Naira conversion rate (hypothetical)
-    const nairaRate = 800; 
+    const nairaRate = 800;
     const totalInNaira = (total * nairaRate).toFixed(2);
 
     const handleInputChange = (e) => {
@@ -185,8 +185,7 @@ export default function Checkout() {
         e.preventDefault();
 
         try {
-            // In a real app, you would send an API request to process the order
-            console.log('Processing order with data:', {
+            const orderData = {
                 items: checkoutItems,
                 customer: formData,
                 isAuthenticated,
@@ -195,17 +194,26 @@ export default function Checkout() {
                 paymentMethod,
                 totalAmount: parseInt(totalInNaira),
                 currency: 'NGN'
+            };
+
+            // 👉 Call your API to save order to Google Sheets
+            const res = await fetch('/api/orders/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData)
             });
 
-            // Simulate successful order processing
-            alert('Order placed successfully!');
+            const data = await res.json();
 
-            // Clear checkout data
+            if (!res.ok) throw new Error(data.message || 'Order failed');
+
+            const { orderId } = data;
+
+            // ✅ Clear checkout data
             if (mode === 'direct') {
                 localStorage.removeItem('directPurchaseItem');
             } else {
                 localStorage.removeItem('cart');
-                // Notify other components that cart has been cleared
                 window.dispatchEvent(new CustomEvent('cartUpdated'));
             }
 
@@ -213,13 +221,14 @@ export default function Checkout() {
                 localStorage.removeItem('guestCheckout');
             }
 
-            // Redirect to order confirmation page
-            router.push('/order-confirmation');
+            // ✅ Redirect to dynamic order page with ID
+            router.push(`/orders/${orderId}`);
         } catch (error) {
             console.error('Error processing order:', error);
             alert('Failed to process your order. Please try again.');
         }
     };
+
 
     // If we're still determining authentication status, show loading
     if (isLoading) {
@@ -228,7 +237,7 @@ export default function Checkout() {
                 <Header />
                 <div className="container mx-auto flex flex-grow items-center justify-center py-16">
                     <div className="text-center">
-                        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
+                        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-accent-600"></div>
                         <p className="text-gray-600">Loading checkout...</p>
                     </div>
                 </div>
@@ -250,7 +259,7 @@ export default function Checkout() {
                         </p>
                         <button
                             onClick={() => router.push('/')}
-                            className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+                            className="rounded-lg bg-primary-700 px-6 py-2 text-white hover:bg-primary-500"
                         >
                             Continue Shopping
                         </button>
@@ -325,14 +334,14 @@ export default function Checkout() {
                                     <div className="text-right">
                                         <p>₦{shippingFee.toLocaleString()}</p>
                                         <p className="text-xs text-gray-500">
-                                            {formData.state && formData.lga && formData.town 
-                                                ? `${formData.town}, ${formData.lga}` 
+                                            {formData.state && formData.lga && formData.town
+                                                ? `${formData.town}, ${formData.lga}`
                                                 : 'Standard rate'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="mt-4 flex justify-between items-end">
                                 <div>
                                     <p className="text-base font-medium text-gray-900">Total</p>
@@ -408,7 +417,7 @@ export default function Checkout() {
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                                         />
                                     </div>
-                                    
+
                                     <div>
                                         <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
                                             Last Name
@@ -606,7 +615,7 @@ export default function Checkout() {
                             <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                                 <h2 className="mb-4 pb-2 border-b text-xl font-semibold text-gray-800">Payment Method</h2>
                                 <p className="text-sm text-gray-600 mb-4">Select your preferred payment method. All transactions are in Nigerian Naira (₦).</p>
-                                
+
                                 <div className="space-y-4">
                                     {/* Card Payment Option */}
                                     <div className="relative flex items-start">
@@ -623,7 +632,7 @@ export default function Checkout() {
                                         <div className="ml-3 text-sm">
                                             <label htmlFor="payment-card" className="font-medium text-gray-700">Debit/Credit Card</label>
                                             <p className="text-gray-500">Pay securely with your bank card</p>
-                                            
+
                                             {paymentMethod === 'card' && (
                                                 <div className="mt-3 border-t border-gray-100 pt-3">
                                                     <div className="flex flex-wrap gap-2 mb-2">
@@ -660,7 +669,7 @@ export default function Checkout() {
                                         <div className="ml-3 text-sm">
                                             <label htmlFor="payment-transfer" className="font-medium text-gray-700">Bank Transfer</label>
                                             <p className="text-gray-500">Pay by transferring funds to our account</p>
-                                            
+
                                             {paymentMethod === 'bank_transfer' && (
                                                 <div className="mt-3 border-t border-gray-100 pt-3">
                                                     <div className="bg-blue-50 p-3 rounded">
@@ -691,7 +700,7 @@ export default function Checkout() {
                                         <div className="ml-3 text-sm">
                                             <label htmlFor="payment-cod" className="font-medium text-gray-700">Cash on Delivery</label>
                                             <p className="text-gray-500">Pay with cash when your order is delivered</p>
-                                            
+
                                             {paymentMethod === 'cod' && (
                                                 <div className="mt-3 border-t border-gray-100 pt-3">
                                                     <p className="text-xs text-gray-600">
@@ -708,7 +717,7 @@ export default function Checkout() {
                             {/* Order Review & Terms */}
                             <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                                 <h2 className="mb-4 text-xl font-semibold text-gray-800">Review Order</h2>
-                                
+
                                 <div className="mb-6">
                                     <div className="flex items-start">
                                         <div className="flex h-5 items-center">
@@ -730,7 +739,7 @@ export default function Checkout() {
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 {/* Order button for desktop */}
                                 <div className="hidden lg:block">
                                     <button
