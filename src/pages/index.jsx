@@ -277,7 +277,7 @@ export default function Home() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         {filteredProducts.map((product) => (
                             <div key={product.id} className="h-full">
                                 <Link
