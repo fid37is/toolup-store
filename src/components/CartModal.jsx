@@ -7,14 +7,14 @@ import useAuthCheck from '../hooks/useAuthCheck';
 
 const CartModal = ({ isOpen, onClose }) => {
     const router = useRouter();
-    const { 
-        isAuthenticated, 
-        isAuthCheckModalOpen, 
-        initiateAuthCheck, 
-        handleContinueAsGuest, 
-        closeAuthCheckModal 
+    const {
+        isAuthenticated,
+        isAuthCheckModalOpen,
+        initiateAuthCheck,
+        handleContinueAsGuest,
+        closeAuthCheckModal
     } = useAuthCheck();
-    
+
     const [cartItems, setCartItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -83,7 +83,7 @@ const CartModal = ({ isOpen, onClose }) => {
 
                 // Update local state
                 setCartItems(updatedCart);
-                
+
                 // Also try to update via API (in a real app)
                 try {
                     await fetch('/api/cart', {
@@ -243,7 +243,7 @@ const CartModal = ({ isOpen, onClose }) => {
                         </div>
                         <button
                             onClick={handleCheckout}
-                            className="w-full rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-blue-700"
+                            className="w-full rounded bg-primary-500 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-primary-700"
                         >
                             Checkout
                         </button>
@@ -251,7 +251,7 @@ const CartModal = ({ isOpen, onClose }) => {
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="font-medium text-blue-600 hover:text-blue-500"
+                                className="font-medium text-primary-500 hover:text-primary-700"
                             >
                                 Continue Shopping
                             </button>
@@ -259,6 +259,12 @@ const CartModal = ({ isOpen, onClose }) => {
                     </div>
                 )}
             </div>
+            {isAuthCheckModalOpen && (
+                <AuthCheckModal
+                    onClose={closeAuthCheckModal}
+                    onContinueAsGuest={handleContinueAsGuest}
+                />
+            )}
         </div>
     );
 };
