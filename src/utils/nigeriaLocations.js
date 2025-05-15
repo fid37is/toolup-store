@@ -5,7 +5,13 @@ const LGAS_API_BASE = 'https://nga-states-lga.onrender.com/?state=';
 
 // Fallback data (unchanged)
 const FALLBACK_STATES = [
-    { code: 'DE', name: 'Delta' }
+    { code: 'DE', name: 'Delta' },
+    { code: 'LA', name: 'Lagos' },
+    { code: 'AB', name: 'Abia' },
+    { code: 'FC', name: 'FCT' },
+    { code: 'OG', name: 'Ogun' },
+    { code: 'ON', name: 'Ondo' },
+    { code: 'RV', name: 'Rivers' }
 ];
 
 const FALLBACK_LGAS = {
@@ -62,16 +68,95 @@ const FALLBACK_TOWNS = {
     ]
 };
 
+// State code mapping for all Nigeria states
+const STATE_MAPPING = {
+    'DE': 'Delta',
+    'LA': 'Lagos',
+    'AB': 'Abia',
+    'FC': 'FCT',
+    'OG': 'Ogun',
+    'ON': 'Ondo',
+    'RV': 'Rivers',
+    'AD': 'Adamawa',
+    'AK': 'Akwa Ibom',
+    'AN': 'Anambra',
+    'BA': 'Bauchi',
+    'BY': 'Bayelsa',
+    'BE': 'Benue',
+    'BO': 'Borno',
+    'CR': 'Cross River',
+    'EB': 'Ebonyi',
+    'ED': 'Edo',
+    'EK': 'Ekiti',
+    'EN': 'Enugu',
+    'GO': 'Gombe',
+    'IM': 'Imo',
+    'JI': 'Jigawa',
+    'KD': 'Kaduna',
+    'KN': 'Kano',
+    'KT': 'Katsina',
+    'KE': 'Kebbi',
+    'KO': 'Kogi',
+    'KW': 'Kwara',
+    'NA': 'Nasarawa',
+    'NI': 'Niger',
+    'OY': 'Oyo',
+    'PL': 'Plateau',
+    'SO': 'Sokoto',
+    'TA': 'Taraba',
+    'YO': 'Yobe',
+    'ZA': 'Zamfara'
+};
+
+// Create reverse mapping
+const STATE_REVERSE_MAPPING = Object.entries(STATE_MAPPING).reduce((acc, [code, name]) => {
+    acc[name] = code;
+    return acc;
+}, {});
+
 export const fetchAllStates = async () => {
     try {
         const response = await fetch(STATES_API);
         if (!response.ok) throw new Error('Failed to fetch states');
 
         const data = await response.json();
-        return data.states.map(name => ({
-            code: getStateCodeFromName(name),
-            name
-        }));
+
+        // Check the actual structure of the response and handle it accordingly
+        let statesList = [];
+
+        if (data.states && Array.isArray(data.states)) {
+            // Original expected format
+            statesList = data.states;
+        } else if (Array.isArray(data)) {
+            // If the response is directly an array
+            statesList = data;
+        } else if (typeof data === 'object') {
+            // If the response is an object with a different structure
+            // Try to find an array property that might contain states
+            const possibleArrays = Object.values(data).filter(val => Array.isArray(val));
+            if (possibleArrays.length > 0) {
+                // Use the first array found
+                statesList = possibleArrays[0];
+            }
+        }
+
+        if (statesList.length === 0) {
+            throw new Error('No states data found in API response');
+        }
+
+        return statesList.map(state => {
+            // Handle if state is already an object with code and name
+            if (typeof state === 'object' && state.code && state.name) {
+                return state;
+            }
+
+            // Handle if state is just a string (state name)
+            const stateName = typeof state === 'string' ? state : String(state);
+            return {
+                code: getStateCodeFromName(stateName),
+                name: stateName
+            };
+        });
     } catch (error) {
         console.warn('Error fetching states, using fallback data:', error);
         return FALLBACK_STATES;
@@ -89,7 +174,34 @@ export const fetchLGAs = async (stateCode) => {
         if (!response.ok) throw new Error('Failed to fetch LGAs');
 
         const data = await response.json();
-        return data.lga.map(name => ({ name }));
+
+        // Handle different response formats
+        let lgaList = [];
+
+        if (data.lga && Array.isArray(data.lga)) {
+            lgaList = data.lga;
+        } else if (Array.isArray(data)) {
+            lgaList = data;
+        } else if (typeof data === 'object') {
+            const possibleArrays = Object.values(data).filter(val => Array.isArray(val));
+            if (possibleArrays.length > 0) {
+                lgaList = possibleArrays[0];
+            }
+        }
+
+        if (lgaList.length === 0) {
+            throw new Error('No LGA data found in API response');
+        }
+
+        return lgaList.map(lga => {
+            // Handle if LGA is already an object with name
+            if (typeof lga === 'object' && lga.name) {
+                return lga;
+            }
+
+            // Handle if LGA is just a string
+            return { name: typeof lga === 'string' ? lga : String(lga) };
+        });
     } catch (error) {
         console.warn(`Error fetching LGAs for ${stateCode}, using fallback data:`, error);
         return FALLBACK_LGAS[stateCode] || [];
@@ -125,19 +237,12 @@ export const filterTownsByLGA = (towns, lgaName) => {
 };
 
 const convertStateCodeToName = (stateCode) => {
-    const stateMapping = {
-        DE: 'Delta'
-        // Add more as needed
-    };
-    return stateMapping[stateCode] || null;
+    return STATE_MAPPING[stateCode] || null;
 };
 
 const getStateCodeFromName = (stateName) => {
-    const stateReverseMapping = {
-        'Delta': 'DE'
-        // Add more as needed
-    };
-    return stateReverseMapping[stateName] || stateName.toUpperCase().slice(0, 2);
+    return STATE_REVERSE_MAPPING[stateName] ||
+        (stateName && stateName.length >= 2 ? stateName.toUpperCase().slice(0, 2) : 'UN');
 };
 
 export const calculateShippingFee = (locationData) => {

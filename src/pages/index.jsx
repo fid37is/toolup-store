@@ -241,7 +241,7 @@ export default function Home() {
                                 id="inStock"
                                 checked={inStockOnly}
                                 onChange={handleInStockChange}
-                                className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                                className="h-4 w-4 rounded border-gray-300 text-primary-700"
                             />
                             <label htmlFor="inStock" className="ml-2 text-sm text-gray-700">
                                 In Stock Only
@@ -271,13 +271,13 @@ export default function Home() {
                         <p className="text-gray-600">No products match your search criteria.</p>
                         <button
                             onClick={clearFilters}
-                            className="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                            className="mt-4 rounded bg-primary-500 px-4 py-2 text-white hover:bg-primary-700"
                         >
                             Clear Filters
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 gap-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         {filteredProducts.map((product) => (
                             <div key={product.id} className="h-full">
                                 <Link
