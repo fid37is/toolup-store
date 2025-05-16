@@ -1,13 +1,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../../contexts/AuthContext';
-import { useCart } from '../../contexts/CartContext';
 import { createOrder } from '../../services/orderService';
-import Layout from '../../components/Layout';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const CheckoutPage = () => {
-    const { user } = useAuth();
     const { cart, clearCart, cartTotal } = useCart();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
