@@ -12,6 +12,8 @@ import ShippingAddress from '../components/checkout/ShippingAddress';
 import PaymentMethod from '../components/checkout/PaymentMethod';
 import LoadingScreen from '../components/LoadingScreen';
 import EmptyCart from '../components/checkout/EmptyCart';
+import { notifyEvent } from '../components/Notification';
+
 
 export default function Checkout() {
     const router = useRouter();
@@ -23,7 +25,7 @@ export default function Checkout() {
     const [isLoading, setIsLoading] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState('pay_on_pickup'); // Default to pay on pickup
     const [paymentVerified, setPaymentVerified] = useState(true); // Default to true for non-bank methods
-    
+
     // Dollar to Naira conversion rate
     const nairaRate = 800;
 
@@ -60,7 +62,7 @@ export default function Checkout() {
 
     const loadCheckoutItems = () => {
         let items = [];
-        
+
         if (mode === 'direct') {
             // Direct checkout from product page
             const directItem = JSON.parse(localStorage.getItem('directPurchaseItem') || 'null');
@@ -122,13 +124,15 @@ export default function Checkout() {
         e.preventDefault();
 
         try {
+            // Show loading state
+            setIsLoading(true);
+
             // Map order items to ensure proper product reference
             const orderItems = checkoutItems.map(item => ({
                 productId: item.productId || item.id, // Ensure we have a productId for reference
                 name: item.name,
                 price: parseFloat(item.price) || 0,
                 quantity: parseInt(item.quantity) || 1,
-                // We don't include imageUrl directly - we'll use productId to link back to products
             }));
 
             const orderData = {
@@ -143,6 +147,8 @@ export default function Checkout() {
                 orderDate: new Date().toISOString()
             };
 
+            console.log('Submitting order data:', orderData);
+
             // Call the API to save order to Google Sheets
             const res = await fetch('/api/orders/create', {
                 method: 'POST',
@@ -151,29 +157,48 @@ export default function Checkout() {
             });
 
             const data = await res.json();
+            console.log('API response:', data);
 
-            if (!res.ok) throw new Error(data.error || 'Order failed');
+            // Even if there's a database warning, if we have an orderId, consider it a partial success
+            if (data.order && data.order.orderId) {
+                // Store the order ID for reference
+                localStorage.setItem('lastOrderId', data.order.orderId);
 
-            // Store the order ID for reference
-            localStorage.setItem('lastOrderId', data.order.orderId);
+                // Clear checkout data
+                if (mode === 'direct') {
+                    localStorage.removeItem('directPurchaseItem');
+                } else {
+                    localStorage.removeItem('cart');
+                    window.dispatchEvent(new CustomEvent('cartUpdated'));
+                }
 
-            // Clear checkout data
-            if (mode === 'direct') {
-                localStorage.removeItem('directPurchaseItem');
-            } else {
-                localStorage.removeItem('cart');
-                window.dispatchEvent(new CustomEvent('cartUpdated'));
+                if (isGuestCheckout) {
+                    localStorage.removeItem('guestCheckout');
+                }
+
+                // Show any warnings if present but proceed with redirect
+                if (!res.ok && data.warning) {
+                    notifyEvent(data.warning, 'warning');
+                } else {
+                    notifyEvent('Order placed successfully!', 'success');
+                }
+
+                // Redirect to order confirmation page with the order ID
+                router.push(`/order-confirmation?orderId=${data.order.orderId}`);
+                return;
             }
 
-            if (isGuestCheckout) {
-                localStorage.removeItem('guestCheckout');
+            // Otherwise handle as a failure
+            if (!res.ok) {
+                console.error('Order API error:', data);
+                throw new Error(data.error || 'Failed to process order');
             }
-
-            // Redirect to order confirmation page with the order ID
-            router.push(`/order-confirmation?orderId=${data.order.orderId}`);
         } catch (error) {
             console.error('Error processing order:', error);
-            alert('Failed to process your order. Please try again.');
+            notifyEvent(`Order processing error: ${error.message || 'Please try again'}`, 'error');
+        } finally {
+            // Ensure loading state is turned off
+            setIsLoading(false);
         }
     };
 
@@ -205,7 +230,7 @@ export default function Checkout() {
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
                     {/* Order Summary */}
                     <div className="lg:col-span-4 lg:order-2">
-                        <OrderSummary 
+                        <OrderSummary
                             checkoutItems={checkoutItems}
                             subtotal={subtotal}
                             shippingFee={shippingFee}
@@ -215,18 +240,17 @@ export default function Checkout() {
                             formData={formData}
                             isGuestCheckout={isGuestCheckout}
                         />
-                        
+
                         {/* Submit button for mobile */}
                         <div className="mt-6 block lg:hidden">
                             <button
                                 type="submit"
                                 form="checkout-form"
                                 disabled={!paymentVerified}
-                                className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                                    paymentVerified 
-                                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' 
+                                className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${paymentVerified
+                                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                                     : 'bg-gray-400 cursor-not-allowed'
-                                }`}
+                                    }`}
                             >
                                 Complete Order
                             </button>
@@ -236,18 +260,18 @@ export default function Checkout() {
                     {/* Checkout Form */}
                     <div className="lg:col-span-8 lg:order-1">
                         <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
-                            <ContactInformation 
-                                formData={formData} 
-                                handleInputChange={handleInputChange} 
+                            <ContactInformation
+                                formData={formData}
+                                handleInputChange={handleInputChange}
                             />
-                            
-                            <ShippingAddress 
-                                formData={formData} 
+
+                            <ShippingAddress
+                                formData={formData}
                                 handleInputChange={handleInputChange}
                                 setShippingFee={setShippingFee}
                             />
-                            
-                            <PaymentMethod 
+
+                            <PaymentMethod
                                 paymentMethod={paymentMethod}
                                 setPaymentMethod={setPaymentMethod}
                                 setPaymentVerified={setPaymentVerified}
@@ -258,11 +282,10 @@ export default function Checkout() {
                                 <button
                                     type="submit"
                                     disabled={!paymentVerified}
-                                    className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                                        paymentVerified 
-                                        ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' 
+                                    className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${paymentVerified
+                                        ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                                         : 'bg-gray-400 cursor-not-allowed'
-                                    }`}
+                                        }`}
                                 >
                                     Complete Order
                                 </button>

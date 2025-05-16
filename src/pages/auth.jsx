@@ -146,7 +146,7 @@ export default function Auth() {
                             <button
                                 className={`flex-1 py-4 text-center font-medium ${
                                     activeTab === 'login'
-                                        ? 'border-b-2 border-blue-600 text-blue-600'
+                                        ? 'border-b-2 border-primary-500 text-primary-500'
                                         : 'text-gray-600 hover:text-gray-800'
                                 }`}
                                 onClick={() => setActiveTab('login')}
@@ -156,7 +156,7 @@ export default function Auth() {
                             <button
                                 className={`flex-1 py-4 text-center font-medium ${
                                     activeTab === 'register'
-                                        ? 'border-b-2 border-blue-600 text-blue-600'
+                                        ? 'border-b-2 border-primary-500 text-primary-500'
                                         : 'text-gray-600 hover:text-gray-800'
                                 }`}
                                 onClick={() => setActiveTab('register')}
@@ -167,7 +167,7 @@ export default function Auth() {
                         
                         {/* Error message */}
                         {error && (
-                            <div className="mx-6 mt-4 rounded-md bg-red-50 p-4">
+                            <div className="mx-6 mt-4 rounded bg-red-50 p-4">
                                 <div className="flex">
                                     <div className="flex-shrink-0">
                                         <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -195,7 +195,7 @@ export default function Auth() {
                                         value={loginForm.email}
                                         onChange={handleLoginInputChange}
                                         required
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                     />
                                 </div>
                                 
@@ -210,7 +210,7 @@ export default function Auth() {
                                         value={loginForm.password}
                                         onChange={handleLoginInputChange}
                                         required
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                     />
                                 </div>
                                 
@@ -220,7 +220,7 @@ export default function Auth() {
                                             id="remember_me"
                                             name="remember_me"
                                             type="checkbox"
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            className="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
                                         />
                                         <label htmlFor="remember_me" className="ml-2 block text-sm text-gray-700">
                                             Remember me
@@ -228,7 +228,7 @@ export default function Auth() {
                                     </div>
                                     
                                     <div className="text-sm">
-                                        <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+                                        <a href="#" className="font-medium text-primary-500 hover:text-primary-500">
                                             Forgot your password?
                                         </a>
                                     </div>
@@ -237,8 +237,8 @@ export default function Auth() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`w-full rounded-md bg-blue-600 py-2 px-4 text-white ${
-                                        isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
+                                    className={`w-full rounded bg-primary-500 py-2 px-4 text-white ${
+                                        isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
                                     }`}
                                 >
                                     {isLoading ? (
@@ -270,7 +270,7 @@ export default function Auth() {
                                         value={registerForm.name}
                                         onChange={handleRegisterInputChange}
                                         required
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                     />
                                 </div>
                                 
@@ -285,7 +285,7 @@ export default function Auth() {
                                         value={registerForm.email}
                                         onChange={handleRegisterInputChange}
                                         required
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                     />
                                 </div>
                                 
@@ -301,7 +301,7 @@ export default function Auth() {
                                         onChange={handleRegisterInputChange}
                                         required
                                         minLength="6"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                     />
                                 </div>
                                 
@@ -317,15 +317,15 @@ export default function Auth() {
                                         onChange={handleRegisterInputChange}
                                         required
                                         minLength="6"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                     />
                                 </div>
                                 
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`w-full rounded-md bg-blue-600 py-2 px-4 text-white ${
-                                        isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
+                                    className={`w-full rounded bg-primary-500 py-2 px-4 text-white ${
+                                        isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
                                     }`}
                                 >
                                     {isLoading ? (
