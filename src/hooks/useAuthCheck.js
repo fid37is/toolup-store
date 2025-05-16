@@ -1,57 +1,86 @@
-// src/hooks/useAuthCheck.js - Simple fix for auth check
-import { useState } from 'react';
+// src/hooks/useAuthCheck.js
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
 const useAuthCheck = () => {
     const router = useRouter();
+
+    // Auth & user info
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Modal & redirect state
     const [isAuthCheckModalOpen, setIsAuthCheckModalOpen] = useState(false);
     const [redirectPath, setRedirectPath] = useState(null);
-    
-    // Check if user is authenticated
-    const isAuthenticated = () => {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+
+    // Check auth status from localStorage
+    const checkAuthStatus = () => {
+        try {
+            const authStatus = localStorage.getItem('isAuthenticated');
+            const authToken = localStorage.getItem('authToken');
+            if (authStatus === 'true' && authToken) {
+                const userData = JSON.parse(localStorage.getItem('user') || '{}');
+                setIsAuthenticated(true);
+                setUser(userData);
+            } else {
+                setIsAuthenticated(false);
+                setUser(null);
+            }
+        } catch (error) {
+            console.error('Error checking auth status:', error);
+            setIsAuthenticated(false);
+            setUser(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        checkAuthStatus();
+    }, []);
+
+    // Check if currently authenticated (boolean)
+    const currentlyAuthenticated = () => {
+        if (typeof window === 'undefined') return false;
+        const token = localStorage.getItem('authToken');
         return !!token;
     };
 
-    // Initialize the auth check process
+    // Start auth check flow or redirect immediately if authed
     const initiateAuthCheck = (path) => {
-        // If user is already authenticated, redirect immediately
-        if (isAuthenticated()) {
+        if (currentlyAuthenticated()) {
             router.push(path);
             return;
         }
-        
-        // Store the redirect path and open the modal
         setRedirectPath(path);
         setIsAuthCheckModalOpen(true);
     };
 
-    // Handle "Continue as Guest" option
+    // Handle guest checkout
     const handleContinueAsGuest = () => {
-        // Set guest checkout flag
         localStorage.setItem('guestCheckout', 'true');
-        
-        // Close modal and redirect
         closeAuthCheckModal();
-        
-        // Redirect to the stored path
         if (redirectPath) {
             router.push(redirectPath);
         }
     };
 
-    // Close the auth check modal
+    // Close modal
     const closeAuthCheckModal = () => {
         setIsAuthCheckModalOpen(false);
     };
 
     return {
-        isAuthenticated: isAuthenticated(),
+        isAuthenticated,
+        user,
+        loading,
         isAuthCheckModalOpen,
         redirectPath,
+        checkAuthStatus,
         initiateAuthCheck,
         handleContinueAsGuest,
-        closeAuthCheckModal
+        closeAuthCheckModal,
     };
 };
 

@@ -1,154 +1,272 @@
 // src/services/orderService.js
 import { google } from 'googleapis';
 
-let jwtClient = null;
-
-const createJwtClient = () => {
-    if (process.env.GOOGLE_CREDENTIALS_B64) {
-        const decoded = Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64').toString('utf-8');
-        const credentials = JSON.parse(decoded);
-        return new google.auth.JWT(
-            credentials.client_email,
-            null,
-            credentials.private_key,
-            ['https://www.googleapis.com/auth/spreadsheets']
-        );
-    } else {
-        return new google.auth.JWT(
-            process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL,
-            null,
-            (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-            ['https://www.googleapis.com/auth/spreadsheets']
-        );
-    }
-};
-
-const authorizeJwtClient = async () => {
-    if (!jwtClient) jwtClient = createJwtClient();
-    return new Promise((resolve, reject) => {
-        jwtClient.authorize((err) => {
-            if (err) {
-                console.error('JWT Authorization failed:', err);
-                reject(err);
-            } else {
-                resolve(jwtClient);
-            }
-        });
+// Initialize Google Sheets API
+const getAuth = async () => {
+    const auth = new google.auth.GoogleAuth({
+        credentials: {
+            client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        },
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
+
+    return auth;
 };
 
-const getSheets = () => google.sheets({ version: 'v4', auth: jwtClient });
+/**
+ * Generate a unique order ID
+ * @returns {string} - A unique order ID
+ */
+export const generateOrderId = () => {
+    const timestamp = Date.now().toString().slice(-6);
+    const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
+    return `ORD-${timestamp}-${randomStr}`;
+};
 
-// Create an order in Google Sheets
-export const createOrder = async (orderData) => {
+/**
+ * Create an order in Google Sheets
+ * @param {Object} orderData - The order data
+ * @returns {Promise} - A promise that resolves when the order is created
+ */
+export const createOrder = async ({ orderId, orderValues, orderItemsValues }) => {
     try {
-        await authorizeJwtClient();
-        const sheets = getSheets();
-        const sheetId = process.env.GOOGLE_SHEET_ID;
-        
-        const { orderId, orderValues, orderItemsValues } = orderData;
-        
-        // Save the order header
+        const auth = await getAuth();
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // Append to the Orders sheet
         await sheets.spreadsheets.values.append({
-            spreadsheetId: sheetId,
-            range: 'Orders!A:R',
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Orders',
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             resource: {
                 values: orderValues
             }
         });
-        
-        // Save the order items
+
+        // Append to the OrderItems sheet
         await sheets.spreadsheets.values.append({
-            spreadsheetId: sheetId,
-            range: 'OrderItems!A:G',
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'OrderItems',
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             resource: {
                 values: orderItemsValues
             }
         });
-        
-        return {
-            success: true,
-            orderId
-        };
+
+        return { success: true, orderId };
     } catch (error) {
         console.error('Error creating order in Google Sheets:', error);
-        throw new Error('Failed to create order in database');
+        throw error;
     }
 };
 
-// Fetch orders from Google Sheets
-export const fetchOrders = async () => {
+/**
+ * Get orders for a specific user
+ * @param {string} userEmail - The user's email
+ * @returns {Promise<Array>} - A promise that resolves to an array of orders
+ */
+export const getUserOrders = async (userEmail) => {
     try {
-        await authorizeJwtClient();
-        const sheets = getSheets();
-        const sheetId = process.env.GOOGLE_SHEET_ID;
-        const range = 'Orders!A:R';
+        const auth = await getAuth();
+        const sheets = google.sheets({ version: 'v4', auth });
 
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range
+        // Get all orders
+        const ordersResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Orders!A2:R',
         });
 
-        const rows = response.data.values;
-        if (!rows || rows.length < 2) return [];
+        // Get all order items
+        const orderItemsResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'OrderItems!A2:G',
+        });
 
-        const headers = rows[0];
-        const orders = rows.slice(1).map((row) => {
-            const order = {};
-            headers.forEach((h, i) => {
-                order[h] = row[i] || '';
+        // Get all products for image URLs
+        const productsResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Inventory!A2:F',
+        });
+
+        const ordersRows = ordersResponse.data.values || [];
+        const orderItemsRows = orderItemsResponse.data.values || [];
+        const productsRows = productsResponse.data.values || [];
+
+        // Create products map for quick lookups
+        const productsMap = new Map();
+        productsRows.forEach(product => {
+            const productId = product[0]; // Assuming column A is productId
+            const imageUrl = product[4];  // Assuming column E is imageUrl
+            productsMap.set(productId, {
+                id: productId,
+                name: product[1],
+                price: parseFloat(product[2] || 0),
+                imageUrl: imageUrl || ''
             });
-            return order;
         });
 
-        return orders;
-    } catch (error) {
-        console.error('Error fetching orders from Google Sheets:', error);
-        throw new Error('Failed to fetch orders');
-    }
-};
+        // Filter orders by user email
+        const userOrders = ordersRows.filter(row => row[3] === userEmail);
 
-// Fetch order items for a specific order
-export const fetchOrderItems = async (orderId) => {
-    try {
-        await authorizeJwtClient();
-        const sheets = getSheets();
-        const sheetId = process.env.GOOGLE_SHEET_ID;
-        const range = 'OrderItems!A:G';
+        // Format orders
+        const formattedOrders = userOrders.map(order => {
+            const orderId = order[0];
 
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range
-        });
+            // Get items for this order
+            const items = orderItemsRows
+                .filter(item => item[0] === orderId)
+                .map(item => {
+                    const productId = item[1];
+                    const name = item[2];
+                    const quantity = parseInt(item[3] || 1);
+                    const price = parseFloat(item[4] || 0);
 
-        const rows = response.data.values;
-        if (!rows || rows.length < 2) return [];
+                    // Get image URL from product map
+                    const product = productsMap.get(productId);
+                    const imageUrl = product ? product.imageUrl : null;
 
-        const headers = rows[0];
-        const items = rows.slice(1)
-            .filter(row => row[0] === orderId)
-            .map((row) => {
-                const item = {};
-                headers.forEach((h, i) => {
-                    item[h] = row[i] || '';
+                    return {
+                        productId,
+                        name,
+                        quantity,
+                        price,
+                        imageUrl
+                    };
                 });
-                return item;
-            });
 
-        return items;
+            // Calculate total
+            const total = parseFloat(order[14] || 0);
+
+            return {
+                orderId,
+                orderDate: order[1],
+                customerName: order[2],
+                email: order[3],
+                status: order[17] || 'Pending',
+                total,
+                items
+            };
+        });
+
+        return formattedOrders;
     } catch (error) {
-        console.error('Error fetching order items from Google Sheets:', error);
-        throw new Error('Failed to fetch order items');
+        console.error('Error fetching user orders:', error);
+        throw error;
     }
 };
 
-// Generate a unique order ID
-export const generateOrderId = () => {
-    const timestamp = new Date().getTime();
-    const randomStr = Math.random().toString(36).substring(2, 8);
-    return `ORD-${timestamp.toString().slice(-6)}-${randomStr}`.toUpperCase();
+/**
+ * Get a specific order by ID
+ * @param {string} orderId - The order ID
+ * @param {string} userEmail - The user's email (for verification)
+ * @returns {Promise<Object>} - A promise that resolves to the order details
+ */
+export const getOrderById = async (orderId, userEmail) => {
+    try {
+        const auth = await getAuth();
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // Get all orders
+        const ordersResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Orders!A2:R',
+        });
+
+        // Get all order items
+        const orderItemsResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'OrderItems!A2:G',
+        });
+
+        // Get all products for image URLs
+        const productsResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Inventory!A2:F',
+        });
+
+        const ordersRows = ordersResponse.data.values || [];
+        const orderItemsRows = orderItemsResponse.data.values || [];
+        const productsRows = productsResponse.data.values || [];
+
+        // Find the specific order
+        const orderRow = ordersRows.find(row => row[0] === orderId);
+
+        if (!orderRow) {
+            throw new Error('Order not found');
+        }
+
+        // Check if the order belongs to the user
+        const orderEmail = orderRow[3]; // Assuming column D is email
+
+        if (orderEmail !== userEmail) {
+            throw new Error('Access denied: This order does not belong to you');
+        }
+
+        // Create products map for quick lookups
+        const productsMap = new Map();
+        productsRows.forEach(product => {
+            const productId = product[0]; // Assuming column A is productId
+            const imageUrl = product[4];  // Assuming column E is imageUrl
+            productsMap.set(productId, {
+                id: productId,
+                name: product[1],
+                price: parseFloat(product[2] || 0),
+                imageUrl: imageUrl || ''
+            });
+        });
+
+        // Get items for this order
+        const items = orderItemsRows
+            .filter(item => item[0] === orderId)
+            .map(item => {
+                const productId = item[1];
+                const name = item[2];
+                const quantity = parseInt(item[3] || 1);
+                const price = parseFloat(item[4] || 0);
+
+                // Get image URL from product map
+                const product = productsMap.get(productId);
+                const imageUrl = product ? product.imageUrl : null;
+
+                return {
+                    productId,
+                    name,
+                    quantity,
+                    price,
+                    imageUrl
+                };
+            });
+
+        // Format the order
+        const order = {
+            orderId: orderRow[0],
+            orderDate: orderRow[1],
+            customerName: orderRow[2],
+            email: orderRow[3],
+            phoneNumber: orderRow[4],
+            status: orderRow[17] || 'Pending',
+            paymentMethod: orderRow[12] || 'N/A',
+            shippingFee: parseFloat(orderRow[13] || 0),
+            total: parseFloat(orderRow[14] || 0),
+            currency: orderRow[15] || 'NGN',
+            shippingAddress: {
+                address: orderRow[5] || '',
+                city: orderRow[6] || '',
+                state: orderRow[7] || '',
+                lga: orderRow[8] || '',
+                town: orderRow[9] || '',
+                zip: orderRow[10] || '',
+                additionalInfo: orderRow[11] || ''
+            },
+            items
+        };
+
+        return order;
+    } catch (error) {
+        console.error('Error fetching order details:', error);
+        throw error;
+    }
 };

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Layout from '@/components/Layout';
 import useAuthCheck from '@/hooks/useAuthCheck';
 import Link from 'next/link';
 
@@ -73,19 +72,19 @@ export default function OrdersPage() {
 
     if (loading) {
         return (
-            <Layout title="My Orders">
+            <div title="My Orders">
                 <div className="max-w-6xl mx-auto p-4">
                     <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                         <p className="mt-2">Loading your orders...</p>
                     </div>
                 </div>
-            </Layout>
+            </div>
         );
     }
 
     return (
-        <Layout title="My Orders">
+        <div title="My Orders">
             <div className="max-w-6xl mx-auto p-4">
                 <h1 className="text-2xl font-bold mb-6">My Orders</h1>
 
@@ -163,6 +162,6 @@ export default function OrdersPage() {
                     </div>
                 )}
             </div>
-        </Layout>
+        </div>
     );
 }

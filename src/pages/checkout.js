@@ -21,7 +21,8 @@ export default function Checkout() {
     const [isGuestCheckout, setIsGuestCheckout] = useState(false);
     const [checkoutItems, setCheckoutItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [paymentMethod, setPaymentMethod] = useState('card');
+    const [paymentMethod, setPaymentMethod] = useState('pay_on_pickup'); // Default to pay on pickup
+    const [paymentVerified, setPaymentVerified] = useState(true); // Default to true for non-bank methods
     
     // Dollar to Naira conversion rate
     const nairaRate = 800;
@@ -214,6 +215,22 @@ export default function Checkout() {
                             formData={formData}
                             isGuestCheckout={isGuestCheckout}
                         />
+                        
+                        {/* Submit button for mobile */}
+                        <div className="mt-6 block lg:hidden">
+                            <button
+                                type="submit"
+                                form="checkout-form"
+                                disabled={!paymentVerified}
+                                className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                    paymentVerified 
+                                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' 
+                                    : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                Complete Order
+                            </button>
+                        </div>
                     </div>
 
                     {/* Checkout Form */}
@@ -233,13 +250,19 @@ export default function Checkout() {
                             <PaymentMethod 
                                 paymentMethod={paymentMethod}
                                 setPaymentMethod={setPaymentMethod}
+                                setPaymentVerified={setPaymentVerified}
                             />
 
                             {/* Submit button for desktop */}
                             <div className="hidden lg:block">
                                 <button
                                     type="submit"
-                                    className="w-full rounded-lg bg-green-600 px-6 py-3 text-center font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                    disabled={!paymentVerified}
+                                    className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                        paymentVerified 
+                                        ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' 
+                                        : 'bg-gray-400 cursor-not-allowed'
+                                    }`}
                                 >
                                     Complete Order
                                 </button>
