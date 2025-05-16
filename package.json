@@ -11,8 +11,10 @@
   "dependencies": {
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^7.3.0",
+    "framer-motion": "^12.12.1",
     "googleapis": "^148.0.0",
     "jose": "^6.0.11",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.510.0",
     "next": "15.3.2",
     "react": "^19.0.0",

@@ -8,17 +8,19 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import AuthCheckModal from '../../components/AuthCheckModal';
 import useAuthCheck from '../../hooks/useAuthCheck';
+import { formatNairaPrice } from '../../utils/currency-formatter';
+import { toast } from 'sonner';
 import '../../styles/globals.css'
 
 export default function ProductDetail() {
     const router = useRouter();
     const { id } = router.query;
-    const { 
-        isAuthenticated, 
-        isAuthCheckModalOpen, 
-        initiateAuthCheck, 
-        handleContinueAsGuest, 
-        closeAuthCheckModal 
+    const {
+        isAuthenticated,
+        isAuthCheckModalOpen,
+        initiateAuthCheck,
+        handleContinueAsGuest,
+        closeAuthCheckModal
     } = useAuthCheck();
 
     const [product, setProduct] = useState(null);
@@ -164,21 +166,15 @@ export default function ProductDetail() {
                 console.log("API call failed, but cart was saved to localStorage");
             }
 
-            // Show success message
-            setAddedToCartMessage('Item added to cart successfully!');
-
-            // Clear the message after 3 seconds
-            setTimeout(() => {
-                setAddedToCartMessage('');
-            }, 3000);
+            toast.success(`${product.name} added to cart`);
 
             // Notify other components that cart has been updated
-            console.log("Dispatching cartUpdated event");
             window.dispatchEvent(new CustomEvent('cartUpdated'));
         } catch (error) {
             console.error('Error adding to cart:', error);
-            alert('Failed to add item to cart. Please try again.');
+            toast.error('Failed to add item to cart. Please try again.');
         }
+
     };
 
     const handleBuyNow = () => {
@@ -202,7 +198,7 @@ export default function ProductDetail() {
 
             // Initiate auth check instead of direct navigation
             initiateAuthCheck('/checkout?mode=direct');
-            
+
         } catch (error) {
             console.error('Error processing direct purchase:', error);
             alert('Failed to proceed to checkout. Please try again.');
@@ -295,7 +291,7 @@ export default function ProductDetail() {
                         )}
 
                         <div className="mb-6 mt-4">
-                            <p className="text-3xl font-bold text-gray-900">${parseFloat(product.price).toFixed(2)}</p>
+                            <p className="text-3xl font-bold text-gray-900">{formatNairaPrice(product.price)}</p>
 
                             <div className="mt-4">
                                 {isOutOfStock ? (
@@ -392,9 +388,9 @@ export default function ProductDetail() {
             </main>
 
             <Footer />
-            
+
             {/* Auth Check Modal */}
-            <AuthCheckModal 
+            <AuthCheckModal
                 isOpen={isAuthCheckModalOpen}
                 onClose={closeAuthCheckModal}
                 onContinueAsGuest={handleContinueAsGuest}

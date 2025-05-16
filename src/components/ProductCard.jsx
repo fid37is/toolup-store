@@ -2,21 +2,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notifyEvent } from './Notification';
+import { formatNairaPrice } from '../utils/currency-formatter';
 
 const ProductCard = ({ product, onViewImage }) => {
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
-
-    const formatNairaPrice = (price) => {
-        const exchangeRate = 1500;
-        const nairaPrice = parseFloat(price) * exchangeRate;
-        return new Intl.NumberFormat('en-NG', {
-            style: 'currency',
-            currency: 'NGN',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(nairaPrice);
-    };
 
     const handleAddToWishlist = async (e) => {
         e.preventDefault();

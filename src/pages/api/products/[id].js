@@ -4,7 +4,7 @@ export default async function handler(req, res) {
 
     try {
         // First, fetch all products from your main API endpoint
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/products`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/products`);
 
         if (!response.ok) {
             throw new Error(`Error fetching products: ${response.status}`);

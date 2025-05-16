@@ -1,10 +1,11 @@
-// src/pages/index.jsx - Updated with improved styling and separated ProductCard component
+// src/pages/index.jsx - Updated with improved styling and integrated custom loading spinner
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ImageViewModal from '../components/ImageViewModal';
 import ProductCard from '../components/ProductCard';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function Home() {
     const [products, setProducts] = useState([]);
@@ -142,18 +143,7 @@ export default function Home() {
     };
 
     if (isLoading) {
-        return (
-            <div>
-                <Header />
-                <div className="container mx-auto flex h-96 items-center justify-center">
-                    <div className="text-center">
-                        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-                        <p className="text-gray-600">Loading products...</p>
-                    </div>
-                </div>
-                <Footer />
-            </div>
-        );
+        return <LoadingScreen message="Loading products..." />;
     }
 
     if (error) {
