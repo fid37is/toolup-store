@@ -137,36 +137,40 @@ const WishlistPage = () => {
                     <div className="bg-white rounded-lg shadow-md overflow-hidden">
                         <ul className="divide-y divide-gray-200">
                             {wishlistItems.map((item) => (
-                                <li key={item.productId} className="p-4 sm:p-6 flex flex-col sm:flex-row items-center">
-                                    <div className="flex-shrink-0 w-24 h-24 mb-4 sm:mb-0 sm:mr-6">
-                                        <Image
-                                            src={item.imageUrl || '/placeholder-product.jpg'}
-                                            alt={item.name}
-                                            width={96}
-                                            height={96}
-                                            className="w-full h-full object-cover"
-                                            unoptimized={true}
-                                        />
-                                    </div>
-
-                                    <div className="flex-grow">
-                                        <h3 className="text-lg font-medium text-gray-800">{item.name}</h3>
-
-                                        <div className="flex items-center mt-1">
-                                            <span className="font-medium text-gray-800">{formatNairaPrice(item.price)}</span>
+                                <li key={item.productId} className="p-4">
+                                    {/* Product details row - in columns on both mobile and desktop */}
+                                    <div className="flex flex-row items-start mb-4">
+                                        <div className="flex-shrink-0 w-24 h-24 mr-4">
+                                            <Image
+                                                src={item.imageUrl || '/placeholder-product.jpg'}
+                                                alt={item.name}
+                                                width={96}
+                                                height={96}
+                                                className="object-cover w-full h-full"
+                                                unoptimized={true}
+                                            />
                                         </div>
 
-                                        <div className="mt-2">
-                                            <span className="text-sm text-gray-600">
-                                                Added on {new Date(item.addedAt).toLocaleDateString()}
-                                            </span>
+                                        <div className="flex-grow text-left">
+                                            <h3 className="text-lg font-medium text-gray-800">{item.name}</h3>
+
+                                            <div className="flex items-center mt-1">
+                                                <span className="font-medium text-gray-800">{formatNairaPrice(item.price)}</span>
+                                            </div>
+
+                                            <div className="mt-2">
+                                                <span className="text-sm text-gray-600">
+                                                    Added on {new Date(item.addedAt).toLocaleDateString()}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col sm:flex-row items-center mt-4 sm:mt-0 sm:ml-4 space-y-2 sm:space-y-0 sm:space-x-2">
+                                    {/* Buttons row - horizontal on both mobile and desktop */}
+                                    <div className="flex flex-row justify-end space-x-2">
                                         <button
                                             onClick={() => removeFromWishlist(item.productId)}
-                                            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+                                            className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 flex items-center justify-center"
                                             aria-label="Remove from wishlist"
                                         >
                                             <Trash2 className="h-4 w-4 mr-2" />
@@ -175,7 +179,7 @@ const WishlistPage = () => {
 
                                         <button
                                             onClick={() => addToCart(item)}
-                                            className="w-full sm:w-auto px-4 py-2 rounded flex items-center justify-center bg-primary-500 text-white hover:bg-primary-700"
+                                            className="px-4 py-2 rounded flex items-center justify-center bg-primary-500 text-white hover:bg-primary-700"
                                         >
                                             <ShoppingCart className="h-4 w-4 mr-2" />
                                             Add to Cart

@@ -25,72 +25,72 @@ const AccountSettingsPage = () => {
                             <li>
                                 <button
                                     onClick={() => setActiveTab('profile')}
-                                    className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'profile'
-                                        ? 'bg-blue-50 text-blue-600'
+                                    className={`w-full flex items-center px-4 py-3 rounded text-left ${activeTab === 'profile'
+                                        ? 'bg-blue-50 text-primary-500'
                                         : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
-                                    <User className={`w-5 h-5 mr-3 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                    <User className={`w-5 h-5 mr-3 ${activeTab === 'profile' ? 'text-primary-500' : 'text-gray-500'}`} />
                                     Profile Information
                                 </button>
                             </li>
                             <li>
                                 <button
                                     onClick={() => setActiveTab('email')}
-                                    className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'email'
-                                        ? 'bg-blue-50 text-blue-600'
+                                    className={`w-full flex items-center px-4 py-3 rounded text-left ${activeTab === 'email'
+                                        ? 'bg-blue-50 text-primary-500'
                                         : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
-                                    <Mail className={`w-5 h-5 mr-3 ${activeTab === 'email' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                    <Mail className={`w-5 h-5 mr-3 ${activeTab === 'email' ? 'text-primary-500' : 'text-gray-500'}`} />
                                     Email Settings
                                 </button>
                             </li>
                             <li>
                                 <button
                                     onClick={() => setActiveTab('password')}
-                                    className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'password'
-                                        ? 'bg-blue-50 text-blue-600'
+                                    className={`w-full flex items-center px-4 py-3 rounded text-left ${activeTab === 'password'
+                                        ? 'bg-blue-50 text-primary-500'
                                         : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
-                                    <Lock className={`w-5 h-5 mr-3 ${activeTab === 'password' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                    <Lock className={`w-5 h-5 mr-3 ${activeTab === 'password' ? 'text-primary-500' : 'text-gray-500'}`} />
                                     Password
                                 </button>
                             </li>
                             <li>
                                 <button
                                     onClick={() => setActiveTab('notifications')}
-                                    className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'notifications'
-                                        ? 'bg-blue-50 text-blue-600'
+                                    className={`w-full flex items-center px-4 py-3 rounded text-left ${activeTab === 'notifications'
+                                        ? 'bg-blue-50 text-primary-500'
                                         : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
-                                    <Bell className={`w-5 h-5 mr-3 ${activeTab === 'notifications' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                    <Bell className={`w-5 h-5 mr-3 ${activeTab === 'notifications' ? 'text-primary-500' : 'text-gray-500'}`} />
                                     Notifications
                                 </button>
                             </li>
                             <li>
                                 <button
                                     onClick={() => setActiveTab('preferences')}
-                                    className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'preferences'
-                                        ? 'bg-blue-50 text-blue-600'
+                                    className={`w-full flex items-center px-4 py-3 rounded text-left ${activeTab === 'preferences'
+                                        ? 'bg-blue-50 text-primary-500'
                                         : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
-                                    <Globe className={`w-5 h-5 mr-3 ${activeTab === 'preferences' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                    <Globe className={`w-5 h-5 mr-3 ${activeTab === 'preferences' ? 'text-primary-500' : 'text-gray-500'}`} />
                                     Preferences
                                 </button>
                             </li>
                             <li>
                                 <button
                                     onClick={() => setActiveTab('security')}
-                                    className={`w-full flex items-center px-4 py-3 rounded-md text-left ${activeTab === 'security'
-                                        ? 'bg-blue-50 text-blue-600'
+                                    className={`w-full flex items-center px-4 py-3 rounded text-left ${activeTab === 'security'
+                                        ? 'bg-blue-50 text-primary-500'
                                         : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
-                                    <Shield className={`w-5 h-5 mr-3 ${activeTab === 'security' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                    <Shield className={`w-5 h-5 mr-3 ${activeTab === 'security' ? 'text-primary-500' : 'text-gray-500'}`} />
                                     Security
                                 </button>
                             </li>
@@ -114,7 +114,7 @@ const AccountSettingsPage = () => {
                                         <input
                                             type="text"
                                             id="firstName"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             defaultValue="John"
                                         />
                                     </div>
@@ -125,7 +125,7 @@ const AccountSettingsPage = () => {
                                         <input
                                             type="text"
                                             id="lastName"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             defaultValue="Doe"
                                         />
                                     </div>
@@ -138,7 +138,7 @@ const AccountSettingsPage = () => {
                                     <input
                                         type="email"
                                         id="email"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                                         defaultValue="john.doe@example.com"
                                     />
                                 </div>
@@ -150,13 +150,13 @@ const AccountSettingsPage = () => {
                                     <input
                                         type="tel"
                                         id="phone"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                                         defaultValue="(555) 123-4567"
                                     />
                                 </div>
 
                                 <div className="pt-4">
-                                    <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    <button className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-blue-700">
                                         Save Changes
                                     </button>
                                 </div>

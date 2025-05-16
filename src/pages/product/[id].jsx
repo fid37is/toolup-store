@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import AuthCheckModal from '../../components/AuthCheckModal';
+import LoadingScreen from '../../components/LoadingScreen'; // Import custom loading component
 import useAuthCheck from '../../hooks/useAuthCheck';
 import { formatNairaPrice } from '../../utils/currency-formatter';
 import { toast } from 'sonner';
@@ -206,18 +207,8 @@ export default function ProductDetail() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex min-h-screen flex-col">
-                <Header />
-                <div className="container mx-auto flex flex-grow items-center justify-center py-16">
-                    <div className="text-center">
-                        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-                        <p className="text-gray-600">Loading product details...</p>
-                    </div>
-                </div>
-                <Footer />
-            </div>
-        );
+        // Use the custom LoadingScreen component
+        return <LoadingScreen message="Loading product details..." />;
     }
 
     if (error || !product) {
@@ -233,7 +224,7 @@ export default function ProductDetail() {
                         </p>
                         <Link
                             href="/"
-                            className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+                            className="rounded-lg bg-primary-500 px-6 py-2 text-white hover:bg-primary-700"
                         >
                             Return to Home
                         </Link>
@@ -257,7 +248,7 @@ export default function ProductDetail() {
                 <div className="mb-6">
                     <Link
                         href="/"
-                        className="inline-flex items-center text-blue-600 hover:underline"
+                        className="inline-flex items-center text-primary-500 hover:underline"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -312,7 +303,7 @@ export default function ProductDetail() {
 
                         {/* Success message */}
                         {addedToCartMessage && (
-                            <div className="mb-4 rounded-md bg-green-50 p-4">
+                            <div className="mb-4 rounded bg-green-50 p-4">
                                 <div className="flex">
                                     <div className="flex-shrink-0">
                                         <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
@@ -365,7 +356,7 @@ export default function ProductDetail() {
                                 onClick={handleAddToCart}
                                 className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
                                     ? 'cursor-not-allowed bg-gray-400'
-                                    : 'bg-blue-600 hover:bg-blue-700'
+                                    : 'bg-primary-500 hover:bg-primary-700'
                                     }`}
                                 disabled={isOutOfStock}
                             >
