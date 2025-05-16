@@ -48,13 +48,7 @@ const UserAvatarDropdown = () => {
                 className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 aria-label="User menu"
             >
-                <Image
-                    src="/fav 1.png"
-                    alt="User"
-                    width={32}
-                    height={32}
-                    className="rounded-full"
-                />
+            <span>User</span>
             </button>
 
             {userMenuOpen && (
