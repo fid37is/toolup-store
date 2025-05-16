@@ -5,7 +5,7 @@ import { getOrderById } from '../../../services/orderService';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatCurrency } from '../../../utils/formatters';
-import LoadingSpinner from '../../../components/LoadingSpinner';
+import LoadingSpinner from '../../../components/LoadingScreen';
 
 const OrderDetail = () => {
     const [order, setOrder] = useState(null);
