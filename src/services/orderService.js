@@ -1,243 +1,196 @@
+import { jwtVerify } from 'jose';
 import { google } from 'googleapis';
-import { fetchProducts } from './productService';
 
-let jwtClient = null;
-
-const createJwtClient = () => {
-    if (process.env.GOOGLE_CREDENTIALS_B64) {
-        const decoded = Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64').toString('utf-8');
-        const credentials = JSON.parse(decoded);
-        return new google.auth.JWT(
-            credentials.client_email,
+// JWT authentication for Google Sheets API
+const getSheetClient = async () => {
+    try {
+        const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+        const auth = new google.auth.JWT(
+            process.env.GOOGLE_CLIENT_EMAIL,
             null,
-            credentials.private_key,
+            privateKey,
             ['https://www.googleapis.com/auth/spreadsheets']
         );
-    } else {
-        return new google.auth.JWT(
-            process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL,
-            null,
-            (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-            ['https://www.googleapis.com/auth/spreadsheets']
-        );
+
+        const sheets = google.sheets({ version: 'v4', auth });
+        return sheets;
+    } catch (error) {
+        console.error('Error creating Google Sheets client:', error);
+        throw new Error('Failed to initialize Google Sheets client');
     }
 };
 
-const authorizeJwtClient = async () => {
-    if (!jwtClient) jwtClient = createJwtClient();
-    return new Promise((resolve, reject) => {
-        jwtClient.authorize((err) => {
-            if (err) {
-                console.error('JWT Authorization failed:', err);
-                reject(err);
-            } else {
-                resolve(jwtClient);
+// Create a new order
+export const createOrder = async (orderData) => {
+    try {
+        const sheets = await getSheetClient();
+
+        // Generate a random order ID (you could use a UUID library in a real app)
+        const orderId = 'ORD' + Date.now().toString(36).toUpperCase() +
+            Math.random().toString(36).substring(2, 5).toUpperCase();
+
+        // Prepare order row data
+        // We'll store items as a JSON string in a single cell
+        const orderRow = [
+            orderId,
+            orderData.userId || 'guest',
+            orderData.orderDate,
+            JSON.stringify(orderData.items),
+            orderData.total,
+            orderData.paymentMethod,
+            orderData.status || 'pending',
+            JSON.stringify(orderData.shippingDetails)
+        ];
+
+        // Insert row into Orders sheet
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Orders!A:H', // Make sure your Orders sheet has these columns
+            valueInputOption: 'RAW',
+            insertDataOption: 'INSERT_ROWS',
+            resource: {
+                values: [orderRow]
             }
         });
-    });
+
+        // If it's not a guest order, update the user's order history
+        if (orderData.userId && orderData.userId !== 'guest') {
+            // Implementation for updating user order history if needed
+            // This could involve updating a separate User Orders sheet or column
+        }
+
+        return { success: true, orderId };
+    } catch (error) {
+        console.error('Error creating order:', error);
+        throw new Error('Failed to create order');
+    }
 };
 
-const getSheets = () => google.sheets({ version: 'v4', auth: jwtClient });
-
-const SHEET_ID = process.env.GOOGLE_SHEET_ID;
-const ORDERS_RANGE = 'Orders!A:Z';
-
-/**
- * Fetch all orders from the Orders sheet and enrich them with product information
- * @param {string} userEmail - Optional email to filter orders by customer
- * @returns {Promise<Array>} - Array of order objects with enriched item data
- */
-export const fetchUserOrders = async (userEmail = null) => {
+// Get all orders (with optional userId filter)
+export const getOrders = async (userId = null) => {
     try {
-        // 1. Fetch all products to get their image URLs and other data
-        const products = await fetchProducts();
+        const sheets = await getSheetClient();
 
-        // Create a map of products by ID and name for quick lookup
-        const productMapById = new Map();
-        const productMapByName = new Map();
-
-        products.forEach(product => {
-            if (product.id) productMapById.set(product.id, product);
-            if (product.name) productMapByName.set(product.name.toLowerCase(), product);
-        });
-
-        // 2. Fetch all orders from the sheet
-        await authorizeJwtClient();
-        const sheets = getSheets();
-
+        // Get all orders from the sheet
         const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SHEET_ID,
-            range: ORDERS_RANGE
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Orders!A:H',
         });
 
-        const rows = response.data.values;
-        if (!rows || rows.length < 2) return [];
+        const rows = response.data.values || [];
 
-        // Get headers from the sheet
-        const headers = rows[0];
-
-        // Find the indices for important columns
-        const itemsJsonIndex = headers.findIndex(h => h === 'itemsJson');
-
-        if (itemsJsonIndex === -1) {
-            console.error('Sheet is missing itemsJson column');
-            return [];
-        }
-
-        // Process all orders and filter by user email if provided
-        let orders = rows.slice(1).map((row) => {
-            // Create a base order object with all columns
-            const order = {};
-            headers.forEach((header, i) => {
-                if (header === 'total') {
-                    order[header] = parseFloat(row[i] || '0');
-                } else {
-                    order[header] = row[i] || '';
-                }
-            });
-
-            // Parse items JSON
+        // Skip header row and map data to order objects
+        const orders = rows.slice(1).map(row => {
             try {
-                const itemsJson = row[itemsJsonIndex];
-                if (itemsJson) {
-                    const items = JSON.parse(itemsJson);
-
-                    // Enrich each item with product details including image URL
-                    order.items = items.map(item => {
-                        // Try to find the product by ID first, then by name
-                        let matchedProduct = null;
-
-                        if (item.productId) {
-                            matchedProduct = productMapById.get(item.productId);
-                        }
-
-                        // If not found by ID, try by name
-                        if (!matchedProduct && item.name) {
-                            matchedProduct = productMapByName.get(item.name.toLowerCase());
-                        }
-
-                        // Merge the item with product data, prioritizing order data
-                        return {
-                            ...item,
-                            imageUrl: matchedProduct?.imageUrl || '/api/placeholder/100/100',
-                            // Add any other product details you need here
-                        };
-                    });
-                } else {
-                    order.items = [];
-                }
-            } catch (err) {
-                console.error('Failed to parse items JSON:', err);
-                order.items = [];
+                return {
+                    orderId: row[0],
+                    userId: row[1],
+                    orderDate: row[2],
+                    items: JSON.parse(row[3] || '[]'),
+                    total: Number(row[4] || 0),
+                    paymentMethod: row[5],
+                    status: row[6] || 'pending',
+                    shippingDetails: JSON.parse(row[7] || '{}')
+                };
+            } catch (e) {
+                console.error('Error parsing order data:', e);
+                return null;
             }
+        }).filter(Boolean); // Remove any orders that failed to parse
 
-            return order;
-        });
-
-        // Filter orders by user email if provided
-        if (userEmail) {
-            orders = orders.filter(order =>
-                order.customerEmail &&
-                order.customerEmail.toLowerCase() === userEmail.toLowerCase()
-            );
+        // If userId is provided, filter orders for that user
+        if (userId) {
+            return orders.filter(order => order.userId === userId);
         }
-
-        // Sort orders by date (newest first)
-        orders.sort((a, b) => {
-            const dateA = new Date(a.date || 0);
-            const dateB = new Date(b.date || 0);
-            return dateB - dateA;
-        });
 
         return orders;
     } catch (error) {
         console.error('Error fetching orders:', error);
-        throw new Error('Failed to fetch orders: ' + error.message);
+        throw new Error('Failed to fetch orders');
     }
 };
 
-/**
- * Fetch a specific order by ID
- * @param {string} orderId - The order ID to fetch
- * @returns {Promise<Object|null>} - The order object or null if not found
- */
-export const fetchOrderById = async (orderId) => {
+// Get a single order by ID
+export const getOrderById = async (orderId) => {
     try {
-        // Fetch all orders
-        const allOrders = await fetchUserOrders();
-        
-        // Find the specific order by ID
-        const order = allOrders.find(order => order.id === orderId);
-        
-        return order || null;
-    } catch (error) {
-        console.error(`Error fetching order ${orderId}:`, error);
-        throw new Error(`Failed to fetch order: ${error.message}`);
-    }
-};
+        const orders = await getOrders();
+        const order = orders.find(order => order.orderId === orderId);
 
-/**
- * Create a new order in the Orders sheet
- * @param {Object} orderData - Data for the new order
- * @returns {Promise<Object>} - The created order with ID
- */
-export const createOrder = async (orderData) => {
-    try {
-        await authorizeJwtClient();
-        const sheets = getSheets();
-
-        // 1. First fetch the Orders sheet to get headers
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SHEET_ID,
-            range: ORDERS_RANGE
-        });
-
-        const rows = response.data.values;
-        if (!rows || rows.length === 0) {
-            throw new Error('Orders sheet is empty or not properly formatted');
+        if (!order) {
+            throw new Error('Order not found');
         }
 
-        const headers = rows[0];
+        return order;
+    } catch (error) {
+        console.error(`Error fetching order ${orderId}:`, error);
+        throw new Error('Failed to fetch order');
+    }
+};
 
-        // 2. Generate a unique order ID
-        const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const currentDate = new Date().toISOString();
+// Update order status
+export const updateOrderStatus = async (orderId, status) => {
+    try {
+        const sheets = await getSheetClient();
 
-        // 3. Prepare the order row
-        const newOrder = {
-            id: orderId,
-            date: currentDate,
-            customerEmail: orderData.customerEmail,
-            customerName: orderData.customerName || '',
-            customerPhone: orderData.customerPhone || '',
-            shippingAddress: orderData.shippingAddress || '',
-            total: orderData.total.toString(),
-            subtotal: (orderData.subtotal || orderData.total).toString(),
-            tax: (orderData.tax || '0').toString(),
-            shipping: (orderData.shipping || '0').toString(),
-            status: orderData.status || 'Completed',
-            paymentMethod: orderData.paymentMethod || '',
-            itemsJson: JSON.stringify(orderData.items || [])
-        };
+        // First, find the row of the order in the sheet
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Orders!A:A',
+        });
 
-        // 4. Create a row array that matches the header structure
-        const newRow = headers.map(header => newOrder[header] || '');
+        const rows = response.data.values || [];
+        const orderRowIndex = rows.findIndex(row => row[0] === orderId);
 
-        // 5. Append the new row to the sheet
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: SHEET_ID,
-            range: 'Orders!A:Z',
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
+        if (orderRowIndex === -1) {
+            throw new Error('Order not found');
+        }
+
+        // Update the status column (column G, index 6)
+        const rowNumber = orderRowIndex + 1; // +1 because sheet rows are 1-indexed
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: `Orders!G${rowNumber}`,
+            valueInputOption: 'RAW',
             resource: {
-                values: [newRow]
+                values: [[status]]
             }
         });
 
-        // 6. Return the created order
-        return newOrder;
+        return { success: true };
     } catch (error) {
-        console.error('Error creating order:', error);
-        throw new Error('Failed to create order: ' + error.message);
+        console.error(`Error updating order ${orderId} status:`, error);
+        throw new Error('Failed to update order status');
+    }
+};
+
+// Authentication helpers
+export const getUserIdFromToken = async (token) => {
+    try {
+        if (!token) return null;
+
+        // Verify the JWT token
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+        const { payload } = await jwtVerify(token.replace('Bearer ', ''), secret);
+
+        return payload.userId;
+    } catch (error) {
+        console.error('Error verifying JWT token:', error);
+        return null;
+    }
+};
+
+// Check if a user is authorized to view an order
+export const isUserAuthorizedForOrder = async (orderId, userId) => {
+    try {
+        // Admin check could go here
+        // if (isAdmin(userId)) return true;
+
+        const order = await getOrderById(orderId);
+
+        // Check if this is the user's order
+        return order.userId === userId;
+    } catch (error) {
+        console.error('Error checking order authorization:', error);
+        return false;
     }
 };
