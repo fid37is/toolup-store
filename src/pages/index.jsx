@@ -1,10 +1,10 @@
-// src/pages/index.jsx - Updated with search, sort, and filter functionality
+// src/pages/index.jsx - Updated with improved styling and separated ProductCard component
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
-import Image from 'next/image';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import ImageViewModal from '../components/ImageViewModal';
+import ProductCard from '../components/ProductCard';
 
 export default function Home() {
     const [products, setProducts] = useState([]);
@@ -19,6 +19,11 @@ export default function Home() {
     const [categories, setCategories] = useState([]);
     const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
     const [inStockOnly, setInStockOnly] = useState(false);
+
+    // Image view modal states
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [selectedImageUrl, setSelectedImageUrl] = useState('');
+    const [selectedProductName, setSelectedProductName] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -74,10 +79,9 @@ export default function Home() {
             result = result.filter(product => product.category === selectedCategory);
         }
 
-        // Apply in-stock filter - FIXED: Check if stock is greater than 0 or truthy
+        // Apply in-stock filter
         if (inStockOnly) {
             result = result.filter(product => {
-                // Handle both numeric stock values and boolean/string "In Stock" indicators
                 if (typeof product.quantity === 'number') {
                     return product.quantity > 0;
                 } else if (typeof product.quantity === 'boolean') {
@@ -85,7 +89,6 @@ export default function Home() {
                 } else if (typeof product.quantity === 'string') {
                     return product.quantity.toLowerCase() === 'in stock' || product.quantity !== '0';
                 }
-                // If stock is undefined or null, check if the UI shows "In Stock"
                 return product.quantity !== 0 && product.quantity !== '0' && product.quantity !== false;
             });
         }
@@ -125,6 +128,17 @@ export default function Home() {
         setSelectedCategory('');
         setSortOption('');
         setInStockOnly(false);
+    };
+
+    // Image modal handlers
+    const handleOpenImageModal = (imageUrl, productName) => {
+        setSelectedImageUrl(imageUrl);
+        setSelectedProductName(productName);
+        setIsImageModalOpen(true);
+    };
+
+    const closeImageModal = () => {
+        setIsImageModalOpen(false);
     };
 
     if (isLoading) {
@@ -174,17 +188,16 @@ export default function Home() {
 
             <Header />
 
-            <main className="container mx-auto flex-grow px-4 py-8">
-
+            <main className="container mx-auto flex-grow px-4 py-6 md:py-8">
                 {/* Search and Filter Section */}
-                <div className="mb-8 rounded-lg bg-gray-50 p-4 shadow-sm">
+                <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow-sm">
                     <div className="grid gap-4 md:grid-cols-5">
-                        <h1 className="mb-4 text-left text-2xl font-bold">Featured Products</h1>
+                        <h1 className="mb-2 text-left text-xl font-bold md:mb-4 md:text-2xl">Featured Products</h1>
                         {/* Search */}
                         <div className="md:col-span-2">
                             <div className="relative">
                                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
                                 </div>
@@ -277,52 +290,29 @@ export default function Home() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {filteredProducts.map((product) => (
-                            <div key={product.id} className="h-full">
-                                <Link
-                                    href={`/product/${product.id}`}
-                                    className="block h-full"
-                                >
-                                    <div className="h-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg transition-shadow hover:shadow-md">
-                                        <div className="relative h-48 w-full bg-gray-100">
-                                            <Image
-                                                src={product.imageUrl || '/placeholder-product.jpg'}
-                                                alt={product.name}
-                                                className="object-contain"
-                                                fill
-                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                                unoptimized={true}
-                                            />
-                                        </div>
-                                        <div className="p-4">
-                                            <h2 className="mb-2 text-lg font-medium text-gray-900">{product.name}</h2>
-                                            <p className="mb-2 text-sm text-gray-500">
-                                                {product.category || 'Uncategorized'}
-                                            </p>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-lg font-bold">${parseFloat(product.price).toFixed(2)}</span>
-                                                {Number(product.quantity) === 0 ? (
-                                                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800">
-                                                        Out of Stock
-                                                    </span>
-                                                ) : (
-                                                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
-                                                        In Stock
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </Link>
-                            </div>
+                            <ProductCard 
+                                key={product.id} 
+                                product={product} 
+                                onViewImage={handleOpenImageModal}
+                            />
                         ))}
                     </div>
                 )}
             </main>
 
             <Footer />
+
+            {/* Image View Modal */}
+            {isImageModalOpen && (
+                <ImageViewModal
+                    isOpen={isImageModalOpen}
+                    imageUrl={selectedImageUrl}
+                    productName={selectedProductName}
+                    onClose={closeImageModal}
+                />
+            )}
         </div>
     );
 }

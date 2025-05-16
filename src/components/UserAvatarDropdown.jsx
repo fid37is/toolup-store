@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
+    MoreVertical,
+    MoreHorizontal,
     User,
     LogOut,
     DollarSign,
@@ -16,9 +19,10 @@ import {
 const UserAvatarDropdown = () => {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
+    const router = useRouter();
 
     const toggleUserMenu = () => {
-        setUserMenuOpen(!userMenuOpen);
+        setUserMenuOpen(prev => !prev);
     };
 
     // Close dropdown when clicking outside
@@ -28,19 +32,16 @@ const UserAvatarDropdown = () => {
                 setUserMenuOpen(false);
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     const handleLogout = () => {
-        const router = useRouter();
         alert('Logging out...');
-        localStorage.clear(); // or your logout logic
+        localStorage.clear();
         router.push('/');
     };
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
@@ -48,13 +49,7 @@ const UserAvatarDropdown = () => {
                 className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 aria-label="User menu"
             >
-                <Image
-                    src="/fav 1.png"
-                    alt="User"
-                    width={32}
-                    height={32}
-                    className="rounded-full"
-                />
+                {userMenuOpen ? <MoreHorizontal /> : <MoreVertical />}
             </button>
 
             {userMenuOpen && (

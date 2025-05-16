@@ -1,7 +1,6 @@
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Layout from '@/components/Layout';
 import Image from 'next/image';
 
 export default function OrderConfirmation() {
@@ -37,20 +36,20 @@ export default function OrderConfirmation() {
 
     if (loading) {
         return (
-            <Layout title="Order Confirmation">
+            <div title="Order Confirmation">
                 <div className="max-w-4xl mx-auto p-4 min-h-screen flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                         <p>Loading order details...</p>
                     </div>
                 </div>
-            </Layout>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Layout title="Order Confirmation">
+            <div title="Order Confirmation">
                 <div className="max-w-4xl mx-auto p-4 min-h-screen flex items-center justify-center">
                     <div className="text-center">
                         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -61,7 +60,7 @@ export default function OrderConfirmation() {
                         </Link>
                     </div>
                 </div>
-            </Layout>
+            </div>
         );
     }
 
@@ -77,7 +76,7 @@ export default function OrderConfirmation() {
     });
 
     return (
-        <Layout title="Order Confirmation">
+        <div title="Order Confirmation">
             <div className="max-w-4xl mx-auto p-4">
                 <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
                     <div className="flex">
@@ -193,6 +192,6 @@ export default function OrderConfirmation() {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </div>
     );
 }
