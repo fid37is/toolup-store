@@ -4,6 +4,7 @@ import Head from 'next/head';
 import { Toaster } from 'sonner'; // ✅ Import sonner Toaster
 import '../styles/globals.css';
 
+
 function MyApp({ Component, pageProps }) {
     return (
         <>

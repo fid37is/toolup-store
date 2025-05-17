@@ -156,7 +156,13 @@ export default function OrderConfirmation() {
                                             <div className="flex items-center">
                                                 {item.imageUrl && (
                                                     <div className="flex-shrink-0 h-10 w-10 mr-4">
-                                                        <Image className="h-10 w-10 object-cover rounded-md" src={item.imageUrl} alt={item.name} />
+                                                        <Image
+                                                            src={item.imageUrl}
+                                                            alt={item.name}
+                                                            width={40}
+                                                            height={40}
+                                                            className="h-10 w-10 object-cover rounded-md"
+                                                        />
                                                     </div>
                                                 )}
                                                 <div>

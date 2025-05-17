@@ -10,7 +10,6 @@ import ContactInformation from '../components/checkout/ContactInformation';
 import ShippingAddress from '../components/checkout/ShippingAddress';
 import PaymentMethod from '../components/checkout/PaymentMethod';
 import LoadingScreen from '../components/LoadingScreen';
-import EmptyCart from '../components/checkout/EmptyCart';
 import { notifyEvent } from '../components/Notification';
 import AuthCheckModal from '../components/AuthCheckModal';
 
@@ -25,9 +24,7 @@ export default function Checkout() {
     const [isLoading, setIsLoading] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState('pay_on_pickup'); // Default to pay on pickup
     const [paymentVerified, setPaymentVerified] = useState(true); // Default to true for non-bank methods
-
-    // Dollar to Naira conversion rate
-    const nairaRate = 800;
+    const [userId, setUserId] = useState(''); // Added userId state
 
     // Form data and shipping calculations
     const [formData, setFormData] = useState({
@@ -47,10 +44,7 @@ export default function Checkout() {
 
     // Calculate order summary values
     const subtotal = checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tax = 0; // No tax as per requirement
-    const total = subtotal + tax + shippingFee;
-    const totalInNaira = (total * nairaRate).toFixed(2);
-
+    const total = subtotal + shippingFee; // Removed currency conversion
 
     // Load checkout items once when component mounts or mode changes
     useEffect(() => {
@@ -99,6 +93,14 @@ export default function Checkout() {
 
         setIsAuthenticated(authStatus === 'true');
         setIsGuestCheckout(guestCheckout === 'true');
+        
+        // Set userId from the user object
+        if (user && user.id) {
+            setUserId(user.id);
+        } else {
+            // Generate a guest user ID if not authenticated
+            setUserId(`guest-${Date.now()}`);
+        }
 
         // Pre-fill email if user is authenticated
         if (authStatus === 'true' && user.email) {
@@ -135,14 +137,28 @@ export default function Checkout() {
                 quantity: parseInt(item.quantity) || 1,
             }));
 
+            // Ensure we have the required fields according to error message
+            if (!userId) {
+                throw new Error('User ID is missing');
+            }
+
+            if (!orderItems || orderItems.length === 0) {
+                throw new Error('No items in cart');
+            }
+
+            if (!paymentMethod) {
+                throw new Error('Payment method is required');
+            }
+
             const orderData = {
-                items: orderItems,
+                userId: userId, // Add the userId field that was missing
+                items: orderItems, // Ensure items array is properly formed
                 customer: formData,
                 isAuthenticated,
                 isGuestCheckout,
                 shippingFee,
-                paymentMethod,
-                totalAmount: parseInt(totalInNaira),
+                paymentMethod, // Already included but mentioned in error
+                totalAmount: total, // Use Naira amount directly
                 currency: 'NGN',
                 orderDate: new Date().toISOString()
             };
@@ -207,10 +223,6 @@ export default function Checkout() {
         return <LoadingScreen message="Loading checkout..." />;
     }
 
-    if (checkoutItems.length === 0) {
-        return <EmptyCart />;
-    }
-
     if (!isAuthenticated && !isGuestCheckout) {
         return <AuthCheckModal />;
     }
@@ -230,16 +242,16 @@ export default function Checkout() {
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
                     {/* Order Summary */}
                     <div className="lg:col-span-4 lg:order-2">
-                        <OrderSummary
-                            checkoutItems={checkoutItems}
-                            subtotal={subtotal}
-                            shippingFee={shippingFee}
-                            total={total}
-                            totalInNaira={totalInNaira}
-                            nairaRate={nairaRate}
-                            formData={formData}
-                            isGuestCheckout={isGuestCheckout}
-                        />
+                        <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-shadow duration-300 hover:shadow-xl">
+                            <OrderSummary
+                                checkoutItems={checkoutItems}
+                                subtotal={subtotal}
+                                shippingFee={shippingFee}
+                                total={total}
+                                formData={formData}
+                                isGuestCheckout={isGuestCheckout}
+                            />
+                        </div>
 
                         {/* Submit button for mobile */}
                         <div className="mt-6 block lg:hidden">
@@ -247,7 +259,7 @@ export default function Checkout() {
                                 type="submit"
                                 form="checkout-form"
                                 disabled={!paymentVerified}
-                                className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${paymentVerified
+                                className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${paymentVerified
                                     ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                                     : 'bg-gray-400 cursor-not-allowed'
                                     }`}
@@ -259,31 +271,37 @@ export default function Checkout() {
 
                     {/* Checkout Form */}
                     <div className="lg:col-span-8 lg:order-1">
-                        <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
-                            <ContactInformation
-                                formData={formData}
-                                handleInputChange={handleInputChange}
-                            />
+                        <form id="checkout-form" onSubmit={handleSubmit} className="space-y-8">
+                            <div className="bg-white rounded-xl shadow-lg p-6 transition-shadow duration-300 hover:shadow-xl">
+                                <ContactInformation
+                                    formData={formData}
+                                    handleInputChange={handleInputChange}
+                                />
+                            </div>
 
-                            <ShippingAddress
-                                formData={formData}
-                                handleInputChange={handleInputChange}
-                                setShippingFee={setShippingFee}
-                            />
+                            <div className="bg-white rounded-xl shadow-lg p-6 transition-shadow duration-300 hover:shadow-xl">
+                                <ShippingAddress
+                                    formData={formData}
+                                    handleInputChange={handleInputChange}
+                                    setShippingFee={setShippingFee}
+                                />
+                            </div>
 
-                            <PaymentMethod
-                                paymentMethod={paymentMethod}
-                                setPaymentMethod={setPaymentMethod}
-                                setPaymentVerified={setPaymentVerified}
-                            />
+                            <div className="bg-white rounded-xl shadow-lg p-6 transition-shadow duration-300 hover:shadow-xl">
+                                <PaymentMethod
+                                    paymentMethod={paymentMethod}
+                                    setPaymentMethod={setPaymentMethod}
+                                    setPaymentVerified={setPaymentVerified}
+                                />
+                            </div>
 
                             {/* Submit button for desktop */}
                             <div className="hidden lg:block">
                                 <button
                                     type="submit"
                                     disabled={!paymentVerified}
-                                    className={`w-full rounded-lg px-6 py-3 text-center font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${paymentVerified
-                                        ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                                    className={`w-full rounded-lg px-6 py-4 text-center font-medium text-white text-lg transition-all duration-300 transform focus:outline-none focus:ring-2 focus:ring-offset-2 ${paymentVerified
+                                        ? 'bg-green-600 hover:bg-green-700 hover:scale-[1.02] focus:ring-green-500'
                                         : 'bg-gray-400 cursor-not-allowed'
                                         }`}
                                 >
