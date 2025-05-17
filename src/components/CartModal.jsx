@@ -1,36 +1,37 @@
+// src/components/CartModal.jsx
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import AuthCheckModal from './AuthCheckModal';
-import useAuthCheck from '../hooks/useAuthCheck';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { initFirebase } from '../lib/firebase'; // Adjust path if necessary
+import LoadingScreen from './LoadingScreen'; // Import your custom loading component
 
 const CartModal = ({ isOpen, onClose }) => {
     const router = useRouter();
     const [cartItems, setCartItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [isAuthCheckModalOpen, setIsAuthCheckModalOpen] = useState(false);
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
     
     useEffect(() => {
-        // Check authentication status when component mounts
-        const checkAuth = async () => {
-            try {
-                // In a real app, this would be a proper auth check
-                // For this implementation, check if there's a user token in localStorage
-                const userToken = localStorage.getItem('userToken');
-                setIsAuthenticated(!!userToken);
-            } catch (err) {
-                console.error('Auth check failed:', err);
-                setIsAuthenticated(false);
-            }
-        };
+        // Initialize Firebase and check authentication status
+        const app = initFirebase();
+        const auth = getAuth(app);
         
-        checkAuth();
+        // Set up auth state listener
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setIsAuthenticated(!!user);
+        });
         
+        // Fetch cart items when modal is opened
         if (isOpen) {
             fetchCartItems();
         }
+        
+        // Clean up listener on unmount
+        return () => unsubscribe();
     }, [isOpen]);
 
     const fetchCartItems = async () => {
@@ -150,33 +151,40 @@ const CartModal = ({ isOpen, onClose }) => {
     };
 
     const handleCheckout = () => {
+        setIsCheckingOut(true);
+        
+        // Check if user is authenticated
         if (isAuthenticated) {
-            // If user is already authenticated, go directly to checkout
-            onClose(); // Close cart modal first
-            setTimeout(() => {
-                router.push('/checkout');
-            }, 100);
+            // Redirect directly to checkout if authenticated
+            onClose(); // Close the cart modal first
+            router.push('/checkout');
         } else {
-            // If user is not authenticated, open the auth check modal
-            setIsAuthCheckModalOpen(true);
+            // Show the auth modal instead of redirecting
+            setShowAuthModal(true);
         }
     };
-
-    const handleContinueAsGuest = () => {
-        // Close the auth modal
-        setIsAuthCheckModalOpen(false);
-        
-        // Close the cart modal
-        onClose();
+    
+    const handleGuestCheckout = () => {
+        // Set the guest checkout flag in localStorage
+        localStorage.setItem('guestCheckout', 'true');
+        setShowAuthModal(false);
+        setIsCheckingOut(false);
         
         // Redirect to checkout page
-        setTimeout(() => {
-            router.push('/checkout');
-        }, 100);
+        onClose(); // Close the cart modal
+        router.push('/checkout');
     };
 
-    const closeAuthCheckModal = () => {
-        setIsAuthCheckModalOpen(false);
+    const handleLoginRegister = () => {
+        // Redirect to authentication page with a return URL to checkout
+        onClose(); // Close the cart modal
+        router.push(`/auth?redirect=${encodeURIComponent('/checkout')}`);
+    };
+
+    const handleCloseAuthModal = () => {
+        // User canceled the auth flow, just close the auth modal and return to cart
+        setShowAuthModal(false);
+        setIsCheckingOut(false);
     };
 
     const calculateTotal = () => {
@@ -187,8 +195,58 @@ const CartModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <>
-            <div className="fixed inset-0 z-50 flex items-center justify-end bg-black bg-opacity-50 overflow-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black bg-opacity-50 overflow-auto">
+            {showAuthModal ? (
+                <div className="w-full max-w-md mx-auto rounded-lg bg-white p-6 shadow-xl">
+                    <div className="mb-4 text-center">
+                        <h2 className="text-2xl font-bold text-gray-800">Choose Checkout Option</h2>
+                        <p className="mt-2 text-sm text-gray-600">
+                            You can continue as a guest or create an account for a faster checkout experience.
+                        </p>
+                    </div>
+                    
+                    <div className="mt-6 grid grid-cols-1 gap-4">
+                        <button
+                            onClick={handleLoginRegister}
+                            className="rounded-lg bg-blue-600 px-4 py-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                            <div className="flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                </svg>
+                                Log In or Register
+                            </div>
+                            <p className="mt-1 text-xs text-blue-100">
+                                Track orders, save your info for faster checkout
+                            </p>
+                        </button>
+                        
+                        <button
+                            onClick={handleGuestCheckout}
+                            className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                            <div className="flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8z" />
+                                </svg>
+                                Continue as Guest
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Checkout quickly without creating an account
+                            </p>
+                        </button>
+                        
+                        <div className="mt-4 text-center">
+                            <button
+                                onClick={handleCloseAuthModal}
+                                className="text-sm text-gray-600 hover:text-gray-800 hover:underline"
+                            >
+                                Cancel and return to cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : (
                 <div className="h-full w-full max-w-md bg-white shadow-lg flex flex-col animate-slide-in-right">
                     <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                         <h2 className="text-xl font-bold">Your Cart</h2>
@@ -205,8 +263,11 @@ const CartModal = ({ isOpen, onClose }) => {
 
                     <div className="flex-grow overflow-y-auto p-4">
                         {isLoading ? (
-                            <div className="flex justify-center items-center h-32">
-                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                            <div className="flex justify-center items-center h-full">
+                                {/* Replace default spinner with your custom LoadingScreen component */}
+                                <div className="w-full">
+                                    <LoadingScreen message="Loading your cart..." />
+                                </div>
                             </div>
                         ) : error ? (
                             <div className="text-center text-red-600 p-4">
@@ -275,9 +336,17 @@ const CartModal = ({ isOpen, onClose }) => {
                             </div>
                             <button
                                 onClick={handleCheckout}
-                                className="w-full rounded bg-primary-500 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-primary-700"
+                                disabled={isCheckingOut}
+                                className="w-full rounded bg-primary-500 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-primary-700 flex items-center justify-center"
                             >
-                                Checkout
+                                {isCheckingOut ? (
+                                    <>
+                                        <div className="mr-2">
+                                            <LoadingScreen message="" />
+                                        </div>
+                                        Processing...
+                                    </>
+                                ) : "Checkout"}
                             </button>
                             <div className="mt-3 flex justify-center text-center text-sm text-gray-500">
                                 <button
@@ -291,16 +360,8 @@ const CartModal = ({ isOpen, onClose }) => {
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* Auth Check Modal */}
-            <AuthCheckModal 
-                isOpen={isAuthCheckModalOpen}
-                onClose={closeAuthCheckModal}
-                onContinueAsGuest={handleContinueAsGuest}
-                redirectPath="/checkout"
-            />
-        </>
+            )}
+        </div>
     );
 };
 

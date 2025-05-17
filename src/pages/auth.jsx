@@ -1,30 +1,61 @@
-// src/pages/auth.jsx (modified)
+// src/pages/auth.jsx
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { toast } from 'sonner';
+import { 
+    getAuth,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    GoogleAuthProvider,
+    signInWithPopup,
+    onAuthStateChanged
+} from 'firebase/auth';
+import { firebaseApp } from '../lib/firebase'; 
+
+// Initialize Firebase services
+const auth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
 
 export default function Auth() {
     const router = useRouter();
     const { redirect, tab } = router.query;
-    
+
     const [activeTab, setActiveTab] = useState('login');
     const [isLoading, setIsLoading] = useState(false);
-    
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
     // Set active tab based on query parameter
     useEffect(() => {
         if (tab === 'register') {
             setActiveTab('register');
         }
     }, [tab]);
-    
+
+    // Check authentication state
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in, redirect if needed
+                if (redirect) {
+                    router.push(redirect);
+                } else {
+                    router.push('/');
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, [redirect, router]);
+
     // Login form state
     const [loginForm, setLoginForm] = useState({
         email: '',
         password: ''
     });
-    
+
     // Register form state
     const [registerForm, setRegisterForm] = useState({
         name: '',
@@ -32,87 +63,81 @@ export default function Auth() {
         password: '',
         confirmPassword: ''
     });
-    
-    // Error state
-    const [error, setError] = useState('');
-    
+
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
-        setError('');
         setIsLoading(true);
-        
+
         try {
-            // In a real app, this would be an API call
-            console.log('Logging in with:', loginForm);
-            
-            // Simulating successful login
-            setTimeout(() => {
-                // Store auth status and user data
-                localStorage.setItem('isAuthenticated', 'true');
-                localStorage.setItem('user', JSON.stringify({
-                    email: loginForm.email,
-                    name: 'Sample User', // In a real app, this would come from the API
-                }));
-                
-                // Redirect to the appropriate page
-                if (redirect) {
-                    router.push(redirect);
-                } else {
-                    router.push('/');
-                }
-                
-                // Clear any guest checkout status if it exists
-                localStorage.removeItem('guestCheckout');
-            }, 1000);
+            await signInWithEmailAndPassword(
+                auth,
+                loginForm.email,
+                loginForm.password
+            );
+
+            // Auth state listener will handle redirect
         } catch (error) {
-            console.error('Login error:', error);
-            setError('Invalid email or password. Please try again.');
+            // Don't log the full error stack to console to prevent duplicated errors
+            // Just handle specific Firebase error codes silently
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                toast.error('Invalid email or password. Please try again.');
+            } else {
+                toast.error('Login failed. Please try again.');
+            }
+        } finally {
             setIsLoading(false);
         }
     };
-    
+
     const handleRegisterSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        
+
         // Basic validation
         if (registerForm.password !== registerForm.confirmPassword) {
-            setError('Passwords do not match');
+            toast.error('Passwords do not match');
             return;
         }
-        
+
         setIsLoading(true);
-        
+
         try {
-            // In a real app, this would be an API call
-            console.log('Registering with:', registerForm);
-            
-            // Simulating successful registration
-            setTimeout(() => {
-                // Store auth status and user data
-                localStorage.setItem('isAuthenticated', 'true');
-                localStorage.setItem('user', JSON.stringify({
-                    email: registerForm.email,
-                    name: registerForm.name,
-                }));
-                
-                // Redirect to the appropriate page
-                if (redirect) {
-                    router.push(redirect);
-                } else {
-                    router.push('/');
-                }
-                
-                // Clear any guest checkout status if it exists
-                localStorage.removeItem('guestCheckout');
-            }, 1000);
+            // Create user with email and password
+            await createUserWithEmailAndPassword(
+                auth,
+                registerForm.email,
+                registerForm.password
+            );
+
+            // Auth state listener will handle redirect
+            toast.success('Account created successfully!');
         } catch (error) {
-            console.error('Registration error:', error);
-            setError('Registration failed. Please try again.');
+            // Handle specific Firebase error codes without logging to console
+            if (error.code === 'auth/email-already-in-use') {
+                toast.error('Email already in use. Please use a different email or login.');
+            } else if (error.code === 'auth/weak-password') {
+                toast.error('Password is too weak. Please use a stronger password.');
+            } else {
+                toast.error('Registration failed. Please try again.');
+            }
+        } finally {
             setIsLoading(false);
         }
     };
-    
+
+    const handleGoogleSignIn = async () => {
+        setIsGoogleLoading(true);
+
+        try {
+            await signInWithPopup(auth, googleProvider);
+            // Auth state listener will handle redirect
+        } catch (error) {
+            // Don't log to console to prevent duplicate errors
+            toast.error('Google sign-in failed. Please try again.');
+        } finally {
+            setIsGoogleLoading(false);
+        }
+    };
+
     const handleLoginInputChange = (e) => {
         const { name, value } = e.target;
         setLoginForm({
@@ -120,7 +145,7 @@ export default function Auth() {
             [name]: value
         });
     };
-    
+
     const handleRegisterInputChange = (e) => {
         const { name, value } = e.target;
         setRegisterForm({
@@ -128,62 +153,93 @@ export default function Auth() {
             [name]: value
         });
     };
-    
+
     return (
         <div className="flex min-h-screen flex-col">
             <Head>
                 <title>{activeTab === 'login' ? 'Log In' : 'Register'} | ToolUp Store</title>
                 <meta name="description" content="Log in or create an account" />
             </Head>
-            
+
             <Header />
-            
-            <main className="container mx-auto flex-grow px-4 py-12">
+
+            <main className="container mx-auto flex-grow px-4 py-12 bg-gray-50">
                 <div className="mx-auto max-w-md">
-                    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md">
+                    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                         {/* Tab navigation */}
                         <div className="flex border-b border-gray-200">
                             <button
-                                className={`flex-1 py-4 text-center font-medium ${
-                                    activeTab === 'login'
-                                        ? 'border-b-2 border-primary-500 text-primary-500'
+                                className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'login'
+                                        ? 'border-b-2 border-primary-500 text-primary-600'
                                         : 'text-gray-600 hover:text-gray-800'
-                                }`}
+                                    }`}
                                 onClick={() => setActiveTab('login')}
                             >
                                 Log In
                             </button>
                             <button
-                                className={`flex-1 py-4 text-center font-medium ${
-                                    activeTab === 'register'
-                                        ? 'border-b-2 border-primary-500 text-primary-500'
+                                className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register'
+                                        ? 'border-b-2 border-primary-500 text-primary-600'
                                         : 'text-gray-600 hover:text-gray-800'
-                                }`}
+                                    }`}
                                 onClick={() => setActiveTab('register')}
                             >
                                 Register
                             </button>
                         </div>
-                        
-                        {/* Error message */}
-                        {error && (
-                            <div className="mx-6 mt-4 rounded bg-red-50 p-4">
-                                <div className="flex">
-                                    <div className="flex-shrink-0">
-                                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+
+                        {/* Social Login Button */}
+                        <div className="px-6 pt-6">
+                            <button
+                                type="button"
+                                onClick={handleGoogleSignIn}
+                                disabled={isGoogleLoading}
+                                className="flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white py-2.5 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all"
+                            >
+                                {isGoogleLoading ? (
+                                    <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                ) : (
+                                    <>
+                                        <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+                                            <path
+                                                fill="#4285F4"
+                                                d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+                                            />
+                                            <path
+                                                fill="#34A853"
+                                                d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09c1.97 3.92 6.02 6.62 10.71 6.62z"
+                                            />
+                                            <path
+                                                fill="#FBBC05"
+                                                d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29v-3.09h-3.98c-.8 1.61-1.26 3.43-1.26 5.38s.46 3.77 1.26 5.38l3.98-3.09z"
+                                            />
+                                            <path
+                                                fill="#EA4335"
+                                                d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42c-2.08-1.94-4.78-3.13-8.02-3.13-4.69 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+                                            />
                                         </svg>
-                                    </div>
-                                    <div className="ml-3">
-                                        <p className="text-sm text-red-700">{error}</p>
-                                    </div>
-                                </div>
+                                        Continue with Google
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="relative mt-4 mb-2">
+                            <div className="absolute inset-0 flex items-center px-6">
+                                <div className="w-full border-t border-gray-300"></div>
                             </div>
-                        )}
-                        
+                            <div className="relative flex justify-center text-sm">
+                                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                            </div>
+                        </div>
+
                         {/* Login form */}
                         {activeTab === 'login' && (
-                            <form onSubmit={handleLoginSubmit} className="p-6">
+                            <form onSubmit={handleLoginSubmit} className="p-6 pt-4">
                                 <div className="mb-4">
                                     <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                                         Email Address
@@ -195,10 +251,11 @@ export default function Auth() {
                                         value={loginForm.email}
                                         onChange={handleLoginInputChange}
                                         required
-                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        placeholder="your@email.com"
                                     />
                                 </div>
-                                
+
                                 <div className="mb-6">
                                     <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                         Password
@@ -210,11 +267,12 @@ export default function Auth() {
                                         value={loginForm.password}
                                         onChange={handleLoginInputChange}
                                         required
-                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        placeholder="••••••••"
                                     />
                                 </div>
-                                
-                                <div className="flex items-center justify-between mb-4">
+
+                                <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center">
                                         <input
                                             id="remember_me"
@@ -226,20 +284,19 @@ export default function Auth() {
                                             Remember me
                                         </label>
                                     </div>
-                                    
+
                                     <div className="text-sm">
-                                        <a href="#" className="font-medium text-primary-500 hover:text-primary-500">
-                                            Forgot your password?
+                                        <a href="#" className="font-medium text-primary-600 hover:text-primary-700">
+                                            Forgot password?
                                         </a>
                                     </div>
                                 </div>
-                                
+
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`w-full rounded bg-primary-500 py-2 px-4 text-white ${
-                                        isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
-                                    }`}
+                                    className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-sm transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
+                                        }`}
                                 >
                                     {isLoading ? (
                                         <span className="flex items-center justify-center">
@@ -255,10 +312,10 @@ export default function Auth() {
                                 </button>
                             </form>
                         )}
-                        
+
                         {/* Register form */}
                         {activeTab === 'register' && (
-                            <form onSubmit={handleRegisterSubmit} className="p-6">
+                            <form onSubmit={handleRegisterSubmit} className="p-6 pt-4">
                                 <div className="mb-4">
                                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                                         Full Name
@@ -270,10 +327,11 @@ export default function Auth() {
                                         value={registerForm.name}
                                         onChange={handleRegisterInputChange}
                                         required
-                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        placeholder="John Doe"
                                     />
                                 </div>
-                                
+
                                 <div className="mb-4">
                                     <label htmlFor="register_email" className="block text-sm font-medium text-gray-700">
                                         Email Address
@@ -285,10 +343,11 @@ export default function Auth() {
                                         value={registerForm.email}
                                         onChange={handleRegisterInputChange}
                                         required
-                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        placeholder="your@email.com"
                                     />
                                 </div>
-                                
+
                                 <div className="mb-4">
                                     <label htmlFor="register_password" className="block text-sm font-medium text-gray-700">
                                         Password
@@ -301,10 +360,11 @@ export default function Auth() {
                                         onChange={handleRegisterInputChange}
                                         required
                                         minLength="6"
-                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        placeholder="••••••••"
                                     />
                                 </div>
-                                
+
                                 <div className="mb-6">
                                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                                         Confirm Password
@@ -317,16 +377,16 @@ export default function Auth() {
                                         onChange={handleRegisterInputChange}
                                         required
                                         minLength="6"
-                                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        placeholder="••••••••"
                                     />
                                 </div>
-                                
+
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`w-full rounded bg-primary-500 py-2 px-4 text-white ${
-                                        isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
-                                    }`}
+                                    className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-sm transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
+                                        }`}
                                 >
                                     {isLoading ? (
                                         <span className="flex items-center justify-center">
@@ -342,7 +402,7 @@ export default function Auth() {
                                 </button>
                             </form>
                         )}
-                        
+
                         {/* Redirect notice */}
                         {redirect && (
                             <div className="border-t border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-600">
@@ -356,7 +416,7 @@ export default function Auth() {
                     </div>
                 </div>
             </main>
-            
+
             <Footer />
         </div>
     );

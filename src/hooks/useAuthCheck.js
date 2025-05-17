@@ -1,87 +1,76 @@
 // src/hooks/useAuthCheck.js
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { onAuthStateChanged } from 'firebase/auth';
+import { getFirebaseAuth, initFirebase } from '../lib/firebase';
 
-const useAuthCheck = () => {
-    const router = useRouter();
-
-    // Auth & user info
+/**
+ * Checks if the user is authenticated (local token or Firebase)
+ */
+export default function useAuthCheck() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    // Modal & redirect state
-    const [isAuthCheckModalOpen, setIsAuthCheckModalOpen] = useState(false);
-    const [redirectPath, setRedirectPath] = useState(null);
-
-    // Check auth status from localStorage
-    const checkAuthStatus = () => {
-        try {
-            const authStatus = localStorage.getItem('isAuthenticated');
-            const authToken = localStorage.getItem('authToken');
-            if (authStatus === 'true' && authToken) {
-                const userData = JSON.parse(localStorage.getItem('user') || '{}');
-                setIsAuthenticated(true);
-                setUser(userData);
-            } else {
-                setIsAuthenticated(false);
-                setUser(null);
-            }
-        } catch (error) {
-            console.error('Error checking auth status:', error);
-            setIsAuthenticated(false);
-            setUser(null);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const [loading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        checkAuthStatus();
+        const checkLocalAuth = () => {
+            const authToken = localStorage.getItem('authToken');
+            const userToken = localStorage.getItem('userToken');
+            const jwtToken = localStorage.getItem('jwtToken');
+            const storedUser = localStorage.getItem('user');
+
+            if (authToken || userToken || jwtToken) {
+                const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+                setUser(parsedUser);
+                setIsAuthenticated(true);
+                setIsLoading(false);
+                return true;
+            }
+            return false;
+        };
+
+        if (checkLocalAuth()) return;
+
+        try {
+            initFirebase();
+            const auth = getFirebaseAuth();
+
+            const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                if (currentUser) {
+                    const userObj = {
+                        id: currentUser.uid,
+                        name: currentUser.displayName,
+                        email: currentUser.email
+                    };
+
+                    setIsAuthenticated(true);
+                    setUser(userObj);
+
+                    localStorage.setItem('user', JSON.stringify(userObj));
+                    localStorage.setItem('authToken', currentUser.accessToken || 'true');
+                    localStorage.setItem('isAuthenticated', 'true');
+                } else {
+                    if (!checkLocalAuth()) {
+                        setIsAuthenticated(false);
+                        setUser(null);
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('isAuthenticated');
+                    }
+                }
+                setIsLoading(false);
+            }, (error) => {
+                console.error('Firebase auth error:', error);
+                checkLocalAuth();
+                setIsLoading(false);
+            });
+
+            return () => unsubscribe();
+        } catch (err) {
+            console.error('Auth check failed:', err);
+            checkLocalAuth();
+            setIsLoading(false);
+        }
     }, []);
 
-    // Check if currently authenticated (boolean)
-    const currentlyAuthenticated = () => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('authToken');
-        return !!token;
-    };
-
-    // Start auth check flow or redirect immediately if authed
-    const initiateAuthCheck = (path) => {
-        if (currentlyAuthenticated()) {
-            router.push(path);
-            return;
-        }
-        setRedirectPath(path);
-        setIsAuthCheckModalOpen(true);
-    };
-
-    // Handle guest checkout
-    const handleContinueAsGuest = () => {
-        localStorage.setItem('guestCheckout', 'true');
-        closeAuthCheckModal();
-        if (redirectPath) {
-            router.push(redirectPath);
-        }
-    };
-
-    // Close modal
-    const closeAuthCheckModal = () => {
-        setIsAuthCheckModalOpen(false);
-    };
-
-    return {
-        isAuthenticated,
-        user,
-        loading,
-        isAuthCheckModalOpen,
-        redirectPath,
-        checkAuthStatus,
-        initiateAuthCheck,
-        handleContinueAsGuest,
-        closeAuthCheckModal,
-    };
-};
-
-export default useAuthCheck;
+    return { isAuthenticated, user, loading };
+}

@@ -80,7 +80,7 @@ export default async function handler(req, res) {
         // Fetch order items from OrderItems sheet
         const itemsResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: sheetId,
-            range: 'OrderItems!A:G',
+            range: 'OrderItems!A:R',
         });
 
         const itemRows = itemsResponse.data.values || [];

@@ -1,90 +1,173 @@
 // src/components/AuthCheckModal.jsx
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import Head from 'next/head';
+import Header from './Header';
+import Footer from './Footer';
 
-export default function AuthCheckModal({ isOpen, onClose, onContinueAsGuest, redirectPath = '/checkout' }) {
+export default function AuthCheckModal() {
     const router = useRouter();
-    const [isLoading, setIsLoading] = useState(false);
+    const [cartItems, setCartItems] = useState([]);
+    const [isModalOpen, setIsModalOpen] = useState(true);
 
-    const handleLogin = () => {
-        setIsLoading(true);
-        router.push(`/auth?redirect=${redirectPath}`);
-    };
+    useEffect(() => {
+        // Load cart items from localStorage
+        const mode = router.query.mode;
+        let items = [];
+        
+        if (mode === 'direct') {
+            // Direct checkout from product page
+            const directItem = JSON.parse(localStorage.getItem('directPurchaseItem') || 'null');
+            if (directItem) {
+                items = [directItem];
+            }
+        } else {
+            // Regular checkout from cart
+            const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+            items = cartItems;
+        }
+        
+        setCartItems(items);
+    }, [router.query.mode]);
 
-    const handleRegister = () => {
-        setIsLoading(true);
-        router.push(`/auth?redirect=${redirectPath}&tab=register`);
-    };
-
-    const handleContinueAsGuest = () => {
-        setIsLoading(true);
-        // Set guest checkout flag in localStorage
+    const handleGuestCheckout = () => {
+        // Set the guest checkout flag in localStorage
         localStorage.setItem('guestCheckout', 'true');
-        onContinueAsGuest();
+        setIsModalOpen(false);
+        
+        // Redirect back to checkout page
+        router.push('/checkout');
     };
 
-    if (!isOpen) return null;
+    const handleLoginRegister = () => {
+        // Redirect to authentication page with a return URL to checkout
+        // Ensure we include the current tab parameter to default to login
+        router.push({
+            pathname: '/auth',
+            query: { 
+                redirect: '/checkout',
+                tab: 'login'
+            }
+        });
+    };
+
+    const handleCloseModal = () => {
+        // If they close the modal without choosing, take them back to cart
+        setIsModalOpen(false);
+        router.push('/cart');
+    };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-                <div className="mb-6 text-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Almost there!</h2>
-                    <p className="mt-2 text-gray-600">Please select how you'd like to continue</p>
-                </div>
+        <div className="flex min-h-screen flex-col">
+            <Head>
+                <title>Checkout Options | ToolUp Store</title>
+                <meta name="description" content="Choose how you'd like to checkout" />
+            </Head>
 
-                <div className="mb-8 space-y-4">
-                    <button
-                        onClick={handleLogin}
-                        disabled={isLoading}
-                        className="w-full rounded-md bg-blue-600 py-2 px-4 text-white transition hover:bg-blue-700 disabled:opacity-70"
-                    >
-                        Log in to your account
-                    </button>
+            <Header />
 
-                    <button
-                        onClick={handleRegister}
-                        disabled={isLoading}
-                        className="w-full rounded-md bg-green-600 py-2 px-4 text-white transition hover:bg-green-700 disabled:opacity-70"
-                    >
-                        Create an account
-                    </button>
-
-                    <div className="relative flex items-center py-2">
-                        <div className="flex-grow border-t border-gray-300"></div>
-                        <span className="mx-4 flex-shrink text-sm text-gray-500">or</span>
-                        <div className="flex-grow border-t border-gray-300"></div>
+            <main className="container mx-auto flex-grow px-4 py-16">
+                {/* Cart Summary */}
+                <div className="mx-auto max-w-2xl">
+                    <h1 className="mb-6 text-center text-3xl font-bold">Your Cart</h1>
+                    
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
+                        {cartItems.length > 0 ? (
+                            <>
+                                <div className="mb-4 space-y-4">
+                                    {cartItems.map((item, index) => (
+                                        <div key={index} className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                {item.imageUrl && (
+                                                    <div className="mr-3 h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-100">
+                                                        <img
+                                                            src={item.imageUrl}
+                                                            alt={item.name}
+                                                            className="h-full w-full object-contain"
+                                                        />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
+                                                    <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                                                </div>
+                                            </div>
+                                            <p className="font-medium text-gray-900">
+                                                ${(item.price * item.quantity).toFixed(2)}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-4 border-t border-gray-200 pt-4">
+                                    <div className="flex justify-between text-base font-medium text-gray-900">
+                                        <p>Subtotal</p>
+                                        <p>${cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</p>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <p className="text-center text-gray-500">No items in your cart</p>
+                        )}
                     </div>
-
-                    <button
-                        onClick={handleContinueAsGuest}
-                        disabled={isLoading}
-                        className="w-full rounded-md border border-gray-300 bg-white py-2 px-4 text-gray-700 transition hover:bg-gray-50 disabled:opacity-70"
-                    >
-                        Continue as guest
-                    </button>
                 </div>
 
-                <div className="rounded-md bg-blue-50 p-4">
-                    <h3 className="text-sm font-medium text-blue-800">Benefits of creating an account:</h3>
-                    <ul className="mt-2 list-inside list-disc text-xs text-blue-700">
-                        <li>Save your shipping details for faster checkout</li>
-                        <li>Track your orders and view order history</li>
-                        <li>Get updates on exclusive offers and promotions</li>
-                        <li>Easily manage returns and exchanges</li>
-                    </ul>
-                </div>
+                {/* Auth Options Modal - Always visible on this page */}
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                        <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                            <div className="mb-4 text-center">
+                                <h2 className="text-2xl font-bold text-gray-800">Choose Checkout Option</h2>
+                                <p className="mt-2 text-sm text-gray-600">
+                                    You can continue as a guest or create an account for a faster checkout experience.
+                                </p>
+                            </div>
+                            
+                            <div className="mt-6 grid grid-cols-1 gap-4">
+                                <button
+                                    onClick={handleLoginRegister}
+                                    className="rounded-lg bg-blue-600 px-4 py-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                >
+                                    <div className="flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                        </svg>
+                                        Log In or Register
+                                    </div>
+                                    <p className="mt-1 text-xs text-blue-100">
+                                        Track orders, save your info for faster checkout
+                                    </p>
+                                </button>
+                                
+                                <button
+                                    onClick={handleGuestCheckout}
+                                    className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                >
+                                    <div className="flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8z" />
+                                        </svg>
+                                        Continue as Guest
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Checkout quickly without creating an account
+                                    </p>
+                                </button>
+                                
+                                <div className="mt-4 text-center">
+                                    <button
+                                        onClick={handleCloseModal}
+                                        className="text-sm text-gray-600 hover:text-gray-800 hover:underline"
+                                    >
+                                        Cancel and return to cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </main>
 
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-                    aria-label="Close"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+            <Footer />
         </div>
     );
 }

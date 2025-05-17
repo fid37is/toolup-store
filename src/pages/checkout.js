@@ -5,7 +5,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import CheckoutAuthFlow from '../components/CheckoutAuthFlow';
 import OrderSummary from '../components/checkout/OrderSummary';
 import ContactInformation from '../components/checkout/ContactInformation';
 import ShippingAddress from '../components/checkout/ShippingAddress';
@@ -13,6 +12,7 @@ import PaymentMethod from '../components/checkout/PaymentMethod';
 import LoadingScreen from '../components/LoadingScreen';
 import EmptyCart from '../components/checkout/EmptyCart';
 import { notifyEvent } from '../components/Notification';
+import AuthCheckModal from '../components/AuthCheckModal';
 
 
 export default function Checkout() {
@@ -212,7 +212,7 @@ export default function Checkout() {
     }
 
     if (!isAuthenticated && !isGuestCheckout) {
-        return <CheckoutAuthFlow />;
+        return <AuthCheckModal />;
     }
 
     return (

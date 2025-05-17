@@ -1,4 +1,4 @@
-// src/pages/product/[id].jsx - Product page with auth check integration
+// src/pages/product/[id].jsx - Product page with updated auth flow integration
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -6,9 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import AuthCheckModal from '../../components/AuthCheckModal';
-import LoadingScreen from '../../components/LoadingScreen'; // Import custom loading component
-import useAuthCheck from '../../hooks/useAuthCheck';
+import LoadingScreen from '../../components/LoadingScreen';
 import { formatNairaPrice } from '../../utils/currency-formatter';
 import { toast } from 'sonner';
 import '../../styles/globals.css'
@@ -16,19 +14,11 @@ import '../../styles/globals.css'
 export default function ProductDetail() {
     const router = useRouter();
     const { id } = router.query;
-    const {
-        isAuthenticated,
-        isAuthCheckModalOpen,
-        initiateAuthCheck,
-        handleContinueAsGuest,
-        closeAuthCheckModal
-    } = useAuthCheck();
-
+    
     const [product, setProduct] = useState(null);
     const [quantity, setQuantity] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [addedToCartMessage, setAddedToCartMessage] = useState('');
     const [generatedDescription, setGeneratedDescription] = useState('');
 
     const quantityNum = Number(product?.quantity || 0);
@@ -175,9 +165,9 @@ export default function ProductDetail() {
             console.error('Error adding to cart:', error);
             toast.error('Failed to add item to cart. Please try again.');
         }
-
     };
 
+    // Updated handleBuyNow to use the CheckoutAuthFlow component approach
     const handleBuyNow = () => {
         if (!product || !id) {
             console.error("Product or product ID is missing");
@@ -196,13 +186,12 @@ export default function ProductDetail() {
 
             // Store this as the direct purchase item
             localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
-
-            // Initiate auth check instead of direct navigation
-            initiateAuthCheck('/checkout?mode=direct');
-
+            
+            // Redirect to the checkout auth flow page with direct mode
+            router.push('/?mode=direct');
         } catch (error) {
             console.error('Error processing direct purchase:', error);
-            alert('Failed to proceed to checkout. Please try again.');
+            toast.error('Failed to proceed to checkout. Please try again.');
         }
     };
 
@@ -301,22 +290,6 @@ export default function ProductDetail() {
                             </div>
                         </div>
 
-                        {/* Success message */}
-                        {addedToCartMessage && (
-                            <div className="mb-4 rounded bg-green-50 p-4">
-                                <div className="flex">
-                                    <div className="flex-shrink-0">
-                                        <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                    <div className="ml-3">
-                                        <p className="text-sm font-medium text-green-800">{addedToCartMessage}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {/* AI-Generated Description */}
                         <div className="mb-6">
                             <h2 className="mb-2 text-lg font-medium">Description</h2>
@@ -379,14 +352,6 @@ export default function ProductDetail() {
             </main>
 
             <Footer />
-
-            {/* Auth Check Modal */}
-            <AuthCheckModal
-                isOpen={isAuthCheckModalOpen}
-                onClose={closeAuthCheckModal}
-                onContinueAsGuest={handleContinueAsGuest}
-                redirectPath="/checkout?mode=direct"
-            />
         </div>
     );
 }
