@@ -1,9 +1,8 @@
-/* eslint-disable import/no-anonymous-default-export */
 // src/lib/firebase.js
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
-// Initialize Firebase (put your actual config in .env.local)
+// Your Firebase configuration - make sure these env variables are defined
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,53 +12,12 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Module-level variables to ensure singleton pattern
-let firebaseApp;
-let firebaseAuth;
-let googleAuthProvider;
+// Initialize Firebase - export as a named export
+export const firebaseApp = initializeApp(firebaseConfig);
 
-/**
- * Initialize Firebase if not already initialized
- * @returns The Firebase app instance
- */
-export const initFirebase = () => {
-    if (!firebaseApp) {
-        try {
-            firebaseApp = initializeApp(firebaseConfig);
-            console.log('Firebase initialized successfully');
-        } catch (error) {
-            console.error('Firebase initialization error:', error);
-            throw error;
-        }
-    }
-    return firebaseApp;
-};
+// Initialize services - also export as named exports
+export const auth = getAuth(firebaseApp);
+export const googleProvider = new GoogleAuthProvider();
 
-/**
- * Get Firebase Auth instance
- * @returns The Firebase Auth instance
- */
-export const getFirebaseAuth = () => {
-    if (!firebaseAuth) {
-        const app = initFirebase();
-        firebaseAuth = getAuth(app);
-    }
-    return firebaseAuth;
-};
-
-/**
- * Get Google Auth Provider instance
- * @returns The Google Auth Provider instance
- */
-export const getGoogleAuthProvider = () => {
-    if (!googleAuthProvider) {
-        googleAuthProvider = new GoogleAuthProvider();
-    }
-    return googleAuthProvider;
-};
-
-export default {
-    initFirebase,
-    getFirebaseAuth,
-    getGoogleAuthProvider
-};
+// For backwards compatibility if code is expecting a default export
+export default firebaseApp;

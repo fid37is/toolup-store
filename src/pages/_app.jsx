@@ -1,11 +1,20 @@
 // src/pages/_app.jsx
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Toaster } from 'sonner'; // ✅ Import sonner Toaster
+import { Toaster } from 'sonner';
 import '../styles/globals.css';
 
+// Import and initialize Firebase at app startup
+import { firebaseApp } from '../lib/firebase';
 
 function MyApp({ Component, pageProps }) {
+    // Optionally add Firebase initialization logging if helpful for debugging
+    useEffect(() => {
+        if (firebaseApp) {
+            console.log('Firebase initialized successfully in _app.jsx');
+        }
+    }, []);
+
     return (
         <>
             <Head>

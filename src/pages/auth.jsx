@@ -5,19 +5,14 @@ import Head from 'next/head';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { toast } from 'sonner';
-import { 
-    getAuth,
+import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    GoogleAuthProvider,
     signInWithPopup,
     onAuthStateChanged
 } from 'firebase/auth';
-import { firebaseApp } from '../lib/firebase'; 
-
-// Initialize Firebase services
-const auth = getAuth(firebaseApp);
-const googleProvider = new GoogleAuthProvider();
+// Import the pre-initialized auth and providers
+import { auth, googleProvider } from '../lib/firebase';
 
 export default function Auth() {
     const router = useRouter();
@@ -63,6 +58,8 @@ export default function Auth() {
         password: '',
         confirmPassword: ''
     });
+
+    // Rest of the component remains the same...
 
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
@@ -163,15 +160,15 @@ export default function Auth() {
 
             <Header />
 
-            <main className="container mx-auto flex-grow px-4 py-12 bg-gray-50">
+            <main className="container mx-auto flex-grow px-4 py-12 bg-gray-50">ß
                 <div className="mx-auto max-w-md">
                     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                         {/* Tab navigation */}
                         <div className="flex border-b border-gray-200">
                             <button
                                 className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'login'
-                                        ? 'border-b-2 border-primary-500 text-primary-600'
-                                        : 'text-gray-600 hover:text-gray-800'
+                                    ? 'border-b-2 border-primary-500 text-primary-600'
+                                    : 'text-gray-600 hover:text-gray-800'
                                     }`}
                                 onClick={() => setActiveTab('login')}
                             >
@@ -179,8 +176,8 @@ export default function Auth() {
                             </button>
                             <button
                                 className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register'
-                                        ? 'border-b-2 border-primary-500 text-primary-600'
-                                        : 'text-gray-600 hover:text-gray-800'
+                                    ? 'border-b-2 border-primary-500 text-primary-600'
+                                    : 'text-gray-600 hover:text-gray-800'
                                     }`}
                                 onClick={() => setActiveTab('register')}
                             >

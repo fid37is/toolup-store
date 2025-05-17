@@ -16,8 +16,8 @@ import {
     HelpCircle,
     LogIn
 } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { getFirebaseAuth } from '../lib/firebase';
+import { onAuthStateChanged, getAuth } from 'firebase/auth';
+// Import auth directly instead of using getFirebaseAuth helper function
 
 const UserAvatarDropdown = () => {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -28,7 +28,8 @@ const UserAvatarDropdown = () => {
 
     // Check auth state when component mounts
     useEffect(() => {
-        const auth = getFirebaseAuth();
+        // Use getAuth() directly from firebase/auth
+        const auth = getAuth();
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setCurrentUser(user);
             setLoading(false);
@@ -54,7 +55,8 @@ const UserAvatarDropdown = () => {
 
     const handleLogout = async () => {
         try {
-            const auth = getFirebaseAuth();
+            // Use getAuth() directly from firebase/auth
+            const auth = getAuth();
             await auth.signOut();
             localStorage.clear();
             setUserMenuOpen(false);

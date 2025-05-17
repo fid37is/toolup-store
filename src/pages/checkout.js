@@ -11,7 +11,6 @@ import ShippingAddress from '../components/checkout/ShippingAddress';
 import PaymentMethod from '../components/checkout/PaymentMethod';
 import LoadingScreen from '../components/LoadingScreen';
 import { notifyEvent } from '../components/Notification';
-import AuthCheckModal from '../components/AuthCheckModal';
 
 
 export default function Checkout() {
@@ -221,10 +220,6 @@ export default function Checkout() {
     // Render loading, empty cart, or auth flow screens when needed
     if (isLoading) {
         return <LoadingScreen message="Loading checkout..." />;
-    }
-
-    if (!isAuthenticated && !isGuestCheckout) {
-        return <AuthCheckModal />;
     }
 
     return (

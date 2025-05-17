@@ -1,4 +1,4 @@
-// src/pages/product/[id].jsx - Product page with fixed auth flow integration
+// src/pages/product/[id].jsx - Product page with updated auth flow integration
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -9,8 +9,6 @@ import Footer from '../../components/Footer';
 import LoadingScreen from '../../components/LoadingScreen';
 import { formatNairaPrice } from '../../utils/currency-formatter';
 import { toast } from 'sonner';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { initFirebase } from '../../lib/firebase';
 import '../../styles/globals.css'
 
 export default function ProductDetail() {
@@ -22,47 +20,12 @@ export default function ProductDetail() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [generatedDescription, setGeneratedDescription] = useState('');
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [isCheckingOut, setIsCheckingOut] = useState(false);
-    const [authCheckComplete, setAuthCheckComplete] = useState(false);
 
     const quantityNum = Number(product?.quantity || 0);
     const isOutOfStock = quantityNum === 0;
     const isLowStock = quantityNum > 0 && quantityNum <= 4;
 
     useEffect(() => {
-        // Initialize Firebase and check authentication status
-        const app = initFirebase();
-        const auth = getAuth(app);
-        
-        // Set up auth state listener
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            const wasAuthenticated = isAuthenticated;
-            const newAuthState = !!user;
-            setIsAuthenticated(newAuthState);
-            setAuthCheckComplete(true);
-            
-            // Check if user just logged in and has a pending checkout
-            if (!wasAuthenticated && newAuthState) {
-                const pendingCheckout = localStorage.getItem('pendingCheckout');
-                if (pendingCheckout === 'true') {
-                    // Clear the pending checkout flag
-                    localStorage.removeItem('pendingCheckout');
-                    
-                    // If there's a directPurchaseItem, route to checkout
-                    const directItem = localStorage.getItem('directPurchaseItem');
-                    if (directItem) {
-                        console.log('Detected login during checkout flow, redirecting to checkout');
-                        // Small delay to ensure auth state is fully processed
-                        setTimeout(() => {
-                            router.push('/checkout?mode=direct');
-                        }, 100);
-                    }
-                }
-            }
-        });
-        
         // Only fetch when we have an ID
         if (!id) {
             return;
@@ -93,32 +56,7 @@ export default function ProductDetail() {
         };
 
         fetchProduct();
-        
-        // Check for redirected auth flow
-        const checkPendingAuth = () => {
-            // Check URL parameters for 'from=auth' to detect returning from auth page
-            const fromAuth = router.query.from === 'auth';
-            if (fromAuth) {
-                // User has returned from auth page, check for directPurchaseItem
-                const directItem = localStorage.getItem('directPurchaseItem');
-                if (directItem) {
-                    console.log('Detected return from auth with purchase item, redirecting to checkout');
-                    // Remove pending checkout flag if it exists
-                    localStorage.removeItem('pendingCheckout');
-                    // Redirect to checkout
-                    router.push('/checkout?mode=direct');
-                }
-            }
-        };
-        
-        // Only run this check when router is ready and auth check is complete
-        if (router.isReady && authCheckComplete) {
-            checkPendingAuth();
-        }
-        
-        // Clean up listener on unmount
-        return () => unsubscribe();
-    }, [id, router, isAuthenticated, authCheckComplete, router.isReady]);
+    }, [id]);
 
     // Function to generate AI-like description
     const generateProductDescription = (productData) => {
@@ -229,15 +167,13 @@ export default function ProductDetail() {
         }
     };
 
-    // Updated handleBuyNow to show auth modal if not authenticated
+    // Updated handleBuyNow to use the CheckoutAuthFlow component approach
     const handleBuyNow = () => {
         if (!product || !id) {
             console.error("Product or product ID is missing");
             return;
         }
 
-        setIsCheckingOut(true);
-        
         try {
             // Create a checkout item for this single product
             const checkoutItem = {
@@ -251,64 +187,12 @@ export default function ProductDetail() {
             // Store this as the direct purchase item
             localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
             
-            // Check if user is authenticated
-            if (isAuthenticated) {
-                // Redirect directly to checkout if authenticated
-                router.push('/checkout?mode=direct');
-            } else {
-                // Show the auth modal instead of redirecting
-                setShowAuthModal(true);
-            }
+            // Redirect to the checkout auth flow page with direct mode
+            router.push('/checkout-auth-flow?mode=direct');
         } catch (error) {
             console.error('Error processing direct purchase:', error);
             toast.error('Failed to proceed to checkout. Please try again.');
-            setIsCheckingOut(false);
         }
-    };
-    
-    const handleGuestCheckout = () => {
-        // Set the guest checkout flag in localStorage
-        localStorage.setItem('guestCheckout', 'true');
-        setShowAuthModal(false);
-        setIsCheckingOut(false);
-        
-        // Redirect to checkout page
-        router.push('/checkout?mode=direct');
-    };
-
-    const handleLoginRegister = () => {
-        // Store information about the product being purchased
-        // This will allow us to redirect back to checkout after authentication
-        try {
-            // Save the direct purchase information
-            const checkoutItem = {
-                productId: id,
-                name: product.name,
-                price: product.price,
-                imageUrl: product.imageUrl,
-                quantity: quantity
-            };
-            localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
-            
-            // Also store a flag indicating the user was in a checkout flow
-            localStorage.setItem('pendingCheckout', 'true');
-            
-            // Redirect to authentication page with a return URL to checkout
-            setShowAuthModal(false);
-            setIsCheckingOut(false);
-            // Add from=product param so we can detect return from auth page
-            router.push(`/auth?redirect=${encodeURIComponent('/checkout?mode=direct')}&source=product&productId=${id}`);
-        } catch (error) {
-            console.error('Error saving checkout state:', error);
-            toast.error('Something went wrong. Please try again.');
-            setIsCheckingOut(false);
-        }
-    };
-
-    const handleCloseAuthModal = () => {
-        // User canceled the auth flow, just close the auth modal
-        setShowAuthModal(false);
-        setIsCheckingOut(false);
     };
 
     if (isLoading) {
@@ -348,61 +232,6 @@ export default function ProductDetail() {
             </Head>
 
             <Header />
-
-            {/* Auth Modal */}
-            {showAuthModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-auto">
-                    <div className="w-full max-w-md mx-auto rounded-lg bg-white p-6 shadow-xl">
-                        <div className="mb-4 text-center">
-                            <h2 className="text-2xl font-bold text-gray-800">Choose Checkout Option</h2>
-                            <p className="mt-2 text-sm text-gray-600">
-                                You can continue as a guest or create an account for a faster checkout experience.
-                            </p>
-                        </div>
-                        
-                        <div className="mt-6 grid grid-cols-1 gap-4">
-                            <button
-                                onClick={handleLoginRegister}
-                                className="rounded-lg bg-blue-600 px-4 py-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            >
-                                <div className="flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                                    </svg>
-                                    Log In or Register
-                                </div>
-                                <p className="mt-1 text-xs text-blue-100">
-                                    Track orders, save your info for faster checkout
-                                </p>
-                            </button>
-                            
-                            <button
-                                onClick={handleGuestCheckout}
-                                className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            >
-                                <div className="flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8z" />
-                                    </svg>
-                                    Continue as Guest
-                                </div>
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Checkout quickly without creating an account
-                                </p>
-                            </button>
-                            
-                            <div className="mt-4 text-center">
-                                <button
-                                    onClick={handleCloseAuthModal}
-                                    className="text-sm text-gray-600 hover:text-gray-800 hover:underline"
-                                >
-                                    Cancel and return to product
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <main className="container mx-auto flex-grow px-4 py-8">
                 <div className="mb-6">
@@ -509,20 +338,13 @@ export default function ProductDetail() {
 
                             <button
                                 onClick={handleBuyNow}
-                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock || isCheckingOut
+                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
                                     ? 'cursor-not-allowed bg-gray-400'
                                     : 'bg-green-600 hover:bg-green-700'
                                     }`}
-                                disabled={isOutOfStock || isCheckingOut}
+                                disabled={isOutOfStock}
                             >
-                                {isCheckingOut ? (
-                                    <>
-                                        <span className="mr-2">
-                                            <LoadingScreen message="" />
-                                        </span>
-                                        Processing...
-                                    </>
-                                ) : "Buy Now"}
+                                Buy Now
                             </button>
                         </div>
                     </div>
