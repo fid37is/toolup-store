@@ -3,14 +3,28 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notifyEvent } from './Notification';
 import { formatNairaPrice } from '../utils/currency-formatter';
+import useAuthCheck from '../hooks/useAuthCheck';
 
 const ProductCard = ({ product, onViewImage }) => {
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
+    const { isAuthenticated, loading } = useAuthCheck();
+
+    const promptAuthentication = (action) => {
+        notifyEvent(`Please login or register to ${action}`, 'info');
+        // You can optionally redirect to login page or open a login modal here
+        // Example: router.push('/login?redirect='+encodeURIComponent(window.location.pathname));
+    };
 
     const handleAddToWishlist = async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        if (!isAuthenticated) {
+            promptAuthentication('add to wishlist');
+            return;
+        }
+
         setIsAddingToWishlist(true);
 
         try {
@@ -45,6 +59,12 @@ const ProductCard = ({ product, onViewImage }) => {
     const handleAddToCart = async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        if (!isAuthenticated) {
+            promptAuthentication('add to cart');
+            return;
+        }
+
         setIsAddingToCart(true);
 
         try {
@@ -87,7 +107,10 @@ const ProductCard = ({ product, onViewImage }) => {
                             className="object-contain"
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            unoptimized={true}
+                            quality={85}
+                            loading="lazy"
+                            placeholder="blur"
+                            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmM2Y0ZjYiLz48L3N2Zz4="
                         />
                         <button
                             onClick={(e) => {
@@ -95,7 +118,7 @@ const ProductCard = ({ product, onViewImage }) => {
                                 e.stopPropagation();
                                 onViewImage(product.imageUrl || '/placeholder-product.jpg', product.name);
                             }}
-                            className="absolute top-2 right-2 rounded-full bg-white bg-opacity-60 p-1.5 hover:bg-opacity-90"
+                            className="absolute top-2 right-2 rounded-full bg-white bg-opacity-60 p-1.5 hover:bg-opacity-90 transition-all"
                             aria-label="View image"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,10 +147,10 @@ const ProductCard = ({ product, onViewImage }) => {
                             <div className="flex justify-between pt-2">
                                 <button
                                     onClick={handleAddToWishlist}
-                                    disabled={isAddingToWishlist}
+                                    disabled={isAddingToWishlist || loading}
                                     className={`flex flex-1 items-center justify-center rounded-l bg-gray-50 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 md:text-sm
-                                        ${isAddingToWishlist ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    aria-label="Add to wishlist"
+                                        ${(isAddingToWishlist || loading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    aria-label={isAuthenticated ? "Add to wishlist" : "Login to add to wishlist"}
                                 >
                                     {isAddingToWishlist ? (
                                         <svg className="h-4 w-4 md:mr-1 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
@@ -139,18 +162,18 @@ const ProductCard = ({ product, onViewImage }) => {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                         </svg>
                                     )}
-                                    <span className="hidden md:inline">Wishlist</span>
+                                    <span className="hidden md:inline">{!isAuthenticated && !loading ? 'Login' : 'Wishlist'}</span>
                                 </button>
 
                                 <button
                                     onClick={handleAddToCart}
-                                    disabled={isAddingToCart || Number(product.quantity) === 0}
+                                    disabled={isAddingToCart || Number(product.quantity) === 0 || loading}
                                     className={`flex flex-1 items-center justify-center rounded-r py-1.5 text-xs font-medium text-white transition md:text-sm
                                         ${Number(product.quantity) === 0
                                             ? 'bg-gray-300 cursor-not-allowed'
                                             : 'bg-primary-700 hover:bg-primary-500'} 
-                                        ${isAddingToCart ? 'opacity-50 cursor-wait' : ''}`}
-                                    aria-label="Add to cart"
+                                        ${(isAddingToCart || loading) ? 'opacity-50 cursor-wait' : ''}`}
+                                    aria-label={isAuthenticated ? "Add to cart" : "Login to add to cart"}
                                 >
                                     {isAddingToCart ? (
                                         <svg className="h-4 w-4 md:mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -162,7 +185,7 @@ const ProductCard = ({ product, onViewImage }) => {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                         </svg>
                                     )}
-                                    <span className="hidden md:inline">Add to Cart</span>
+                                    <span className="hidden md:inline">{!isAuthenticated && !loading ? 'Login' : 'Add to Cart'}</span>
                                 </button>
                             </div>
                         </div>

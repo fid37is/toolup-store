@@ -13,6 +13,8 @@ import {
 } from 'firebase/auth';
 // Import the pre-initialized auth and providers
 import { auth, googleProvider } from '../lib/firebase';
+// Import icons for password visibility
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Auth() {
     const router = useRouter();
@@ -21,6 +23,11 @@ export default function Auth() {
     const [activeTab, setActiveTab] = useState('login');
     const [isLoading, setIsLoading] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    
+    // Password visibility states
+    const [showLoginPassword, setShowLoginPassword] = useState(false);
+    const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Set active tab based on query parameter
     useEffect(() => {
@@ -59,8 +66,6 @@ export default function Auth() {
         confirmPassword: ''
     });
 
-    // Rest of the component remains the same...
-
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -72,14 +77,25 @@ export default function Auth() {
                 loginForm.password
             );
 
+            // Show success notification
+            toast.success('Logged in successfully!', {
+                position: 'top-center',
+                duration: 3000,
+            });
+            
             // Auth state listener will handle redirect
         } catch (error) {
-            // Don't log the full error stack to console to prevent duplicated errors
-            // Just handle specific Firebase error codes silently
+            // Handle specific Firebase error codes
             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                toast.error('Invalid email or password. Please try again.');
+                toast.error('Invalid email or password. Please try again.', {
+                    position: 'top-center', 
+                    duration: 4000,
+                });
             } else {
-                toast.error('Login failed. Please try again.');
+                toast.error('Login failed. Please try again.', {
+                    position: 'top-center',
+                    duration: 4000,
+                });
             }
         } finally {
             setIsLoading(false);
@@ -89,9 +105,28 @@ export default function Auth() {
     const handleRegisterSubmit = async (e) => {
         e.preventDefault();
 
-        // Basic validation
+        // Enhanced validation
+        if (!registerForm.name.trim()) {
+            toast.error('Please enter your name', {
+                position: 'top-center',
+                duration: 3000,
+            });
+            return;
+        }
+        
         if (registerForm.password !== registerForm.confirmPassword) {
-            toast.error('Passwords do not match');
+            toast.error('Passwords do not match', {
+                position: 'top-center',
+                duration: 3000,
+            });
+            return;
+        }
+        
+        if (registerForm.password.length < 6) {
+            toast.error('Password must be at least 6 characters long', {
+                position: 'top-center',
+                duration: 3000,
+            });
             return;
         }
 
@@ -105,16 +140,30 @@ export default function Auth() {
                 registerForm.password
             );
 
+            // Show success notification
+            toast.success('Account created successfully!', {
+                position: 'top-center',
+                duration: 3000,
+            });
+            
             // Auth state listener will handle redirect
-            toast.success('Account created successfully!');
         } catch (error) {
-            // Handle specific Firebase error codes without logging to console
+            // Handle specific Firebase error codes
             if (error.code === 'auth/email-already-in-use') {
-                toast.error('Email already in use. Please use a different email or login.');
+                toast.error('Email already in use. Please use a different email or login.', {
+                    position: 'top-center',
+                    duration: 4000,
+                });
             } else if (error.code === 'auth/weak-password') {
-                toast.error('Password is too weak. Please use a stronger password.');
+                toast.error('Password is too weak. Please use a stronger password.', {
+                    position: 'top-center',
+                    duration: 4000,
+                });
             } else {
-                toast.error('Registration failed. Please try again.');
+                toast.error('Registration failed. Please try again.', {
+                    position: 'top-center',
+                    duration: 4000,
+                });
             }
         } finally {
             setIsLoading(false);
@@ -126,10 +175,18 @@ export default function Auth() {
 
         try {
             await signInWithPopup(auth, googleProvider);
+            // Show success notification
+            toast.success('Signed in with Google successfully!', {
+                position: 'top-center',
+                duration: 3000,
+            });
+            
             // Auth state listener will handle redirect
         } catch (error) {
-            // Don't log to console to prevent duplicate errors
-            toast.error('Google sign-in failed. Please try again.');
+            toast.error('Google sign-in failed. Please try again.', {
+                position: 'top-center',
+                duration: 4000,
+            });
         } finally {
             setIsGoogleLoading(false);
         }
@@ -151,8 +208,21 @@ export default function Auth() {
         });
     };
 
+    // Toggle password visibility
+    const toggleLoginPasswordVisibility = () => {
+        setShowLoginPassword(!showLoginPassword);
+    };
+    
+    const toggleRegisterPasswordVisibility = () => {
+        setShowRegisterPassword(!showRegisterPassword);
+    };
+    
+    const toggleConfirmPasswordVisibility = () => {
+        setShowConfirmPassword(!showConfirmPassword);
+    };
+
     return (
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-screen flex-col bg-gray-50">
             <Head>
                 <title>{activeTab === 'login' ? 'Log In' : 'Register'} | ToolUp Store</title>
                 <meta name="description" content="Log in or create an account" />
@@ -160,15 +230,15 @@ export default function Auth() {
 
             <Header />
 
-            <main className="container mx-auto flex-grow px-4 py-12 bg-gray-50">ß
+            <main className="container mx-auto flex-grow px-4 py-12">
                 <div className="mx-auto max-w-md">
                     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                         {/* Tab navigation */}
                         <div className="flex border-b border-gray-200">
                             <button
                                 className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'login'
-                                    ? 'border-b-2 border-primary-500 text-primary-600'
-                                    : 'text-gray-600 hover:text-gray-800'
+                                    ? 'border-b-2 border-primary-500 text-primary-600 bg-gray-50'
+                                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                                     }`}
                                 onClick={() => setActiveTab('login')}
                             >
@@ -176,8 +246,8 @@ export default function Auth() {
                             </button>
                             <button
                                 className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register'
-                                    ? 'border-b-2 border-primary-500 text-primary-600'
-                                    : 'text-gray-600 hover:text-gray-800'
+                                    ? 'border-b-2 border-primary-500 text-primary-600 bg-gray-50'
+                                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                                     }`}
                                 onClick={() => setActiveTab('register')}
                             >
@@ -186,12 +256,12 @@ export default function Auth() {
                         </div>
 
                         {/* Social Login Button */}
-                        <div className="px-6 pt-6">
+                        <div className="px-6 pt-8">
                             <button
                                 type="button"
                                 onClick={handleGoogleSignIn}
                                 disabled={isGoogleLoading}
-                                className="flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white py-2.5 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all"
+                                className="flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white py-3 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all"
                             >
                                 {isGoogleLoading ? (
                                     <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -225,20 +295,20 @@ export default function Auth() {
                         </div>
 
                         {/* Divider */}
-                        <div className="relative mt-4 mb-2">
+                        <div className="relative mt-6 mb-4">
                             <div className="absolute inset-0 flex items-center px-6">
                                 <div className="w-full border-t border-gray-300"></div>
                             </div>
                             <div className="relative flex justify-center text-sm">
-                                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                                <span className="bg-white px-4 text-gray-500 font-medium">Or continue with email</span>
                             </div>
                         </div>
 
                         {/* Login form */}
                         {activeTab === 'login' && (
                             <form onSubmit={handleLoginSubmit} className="p-6 pt-4">
-                                <div className="mb-4">
-                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                <div className="mb-5">
+                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                                         Email Address
                                     </label>
                                     <input
@@ -248,25 +318,38 @@ export default function Auth() {
                                         value={loginForm.email}
                                         onChange={handleLoginInputChange}
                                         required
-                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 transition-all"
                                         placeholder="your@email.com"
                                     />
                                 </div>
 
                                 <div className="mb-6">
-                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                                         Password
                                     </label>
-                                    <input
-                                        type="password"
-                                        id="password"
-                                        name="password"
-                                        value={loginForm.password}
-                                        onChange={handleLoginInputChange}
-                                        required
-                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                                        placeholder="••••••••"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type={showLoginPassword ? "text" : "password"}
+                                            id="password"
+                                            name="password"
+                                            value={loginForm.password}
+                                            onChange={handleLoginInputChange}
+                                            required
+                                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 pr-10 transition-all"
+                                            placeholder="••••••••"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={toggleLoginPasswordVisibility}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
+                                        >
+                                            {showLoginPassword ? (
+                                                <EyeOff className="h-5 w-5" />
+                                            ) : (
+                                                <Eye className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center justify-between mb-6">
@@ -283,7 +366,7 @@ export default function Auth() {
                                     </div>
 
                                     <div className="text-sm">
-                                        <a href="#" className="font-medium text-primary-600 hover:text-primary-700">
+                                        <a href="#" className="font-medium text-primary-600 hover:text-primary-700 hover:underline">
                                             Forgot password?
                                         </a>
                                     </div>
@@ -292,7 +375,7 @@ export default function Auth() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-sm transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
+                                    className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
                                         }`}
                                 >
                                     {isLoading ? (
@@ -313,8 +396,8 @@ export default function Auth() {
                         {/* Register form */}
                         {activeTab === 'register' && (
                             <form onSubmit={handleRegisterSubmit} className="p-6 pt-4">
-                                <div className="mb-4">
-                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                <div className="mb-5">
+                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                                         Full Name
                                     </label>
                                     <input
@@ -324,13 +407,13 @@ export default function Auth() {
                                         value={registerForm.name}
                                         onChange={handleRegisterInputChange}
                                         required
-                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 transition-all"
                                         placeholder="John Doe"
                                     />
                                 </div>
 
-                                <div className="mb-4">
-                                    <label htmlFor="register_email" className="block text-sm font-medium text-gray-700">
+                                <div className="mb-5">
+                                    <label htmlFor="register_email" className="block text-sm font-medium text-gray-700 mb-1">
                                         Email Address
                                     </label>
                                     <input
@@ -340,49 +423,76 @@ export default function Auth() {
                                         value={registerForm.email}
                                         onChange={handleRegisterInputChange}
                                         required
-                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 transition-all"
                                         placeholder="your@email.com"
                                     />
                                 </div>
 
-                                <div className="mb-4">
-                                    <label htmlFor="register_password" className="block text-sm font-medium text-gray-700">
+                                <div className="mb-5">
+                                    <label htmlFor="register_password" className="block text-sm font-medium text-gray-700 mb-1">
                                         Password
                                     </label>
-                                    <input
-                                        type="password"
-                                        id="register_password"
-                                        name="password"
-                                        value={registerForm.password}
-                                        onChange={handleRegisterInputChange}
-                                        required
-                                        minLength="6"
-                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                                        placeholder="••••••••"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type={showRegisterPassword ? "text" : "password"}
+                                            id="register_password"
+                                            name="password"
+                                            value={registerForm.password}
+                                            onChange={handleRegisterInputChange}
+                                            required
+                                            minLength="6"
+                                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 pr-10 transition-all"
+                                            placeholder="••••••••"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={toggleRegisterPasswordVisibility}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
+                                        >
+                                            {showRegisterPassword ? (
+                                                <EyeOff className="h-5 w-5" />
+                                            ) : (
+                                                <Eye className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">Password must be at least 6 characters</p>
                                 </div>
 
                                 <div className="mb-6">
-                                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                                         Confirm Password
                                     </label>
-                                    <input
-                                        type="password"
-                                        id="confirmPassword"
-                                        name="confirmPassword"
-                                        value={registerForm.confirmPassword}
-                                        onChange={handleRegisterInputChange}
-                                        required
-                                        minLength="6"
-                                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                                        placeholder="••••••••"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            id="confirmPassword"
+                                            name="confirmPassword"
+                                            value={registerForm.confirmPassword}
+                                            onChange={handleRegisterInputChange}
+                                            required
+                                            minLength="6"
+                                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 pr-10 transition-all"
+                                            placeholder="••••••••"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={toggleConfirmPasswordVisibility}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
+                                        >
+                                            {showConfirmPassword ? (
+                                                <EyeOff className="h-5 w-5" />
+                                            ) : (
+                                                <Eye className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-sm transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
+                                    className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'
                                         }`}
                                 >
                                     {isLoading ? (

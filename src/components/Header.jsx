@@ -5,23 +5,25 @@ import Image from 'next/image';
 import { FaWhatsapp } from 'react-icons/fa';
 import UserAvatarDropdown from './UserAvatarDropdown';
 import { useRouter } from 'next/router';
+import useAuthCheck from '../hooks/useAuthCheck';
+import { notifyEvent } from './Notification';
 
 const Header = () => {
     const router = useRouter();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [cartItemCount, setCartItemCount] = useState(0);
+    const { isAuthenticated, loading } = useAuthCheck();
 
     const toggleMobileMenu = () => {
         setMobileMenuOpen(!mobileMenuOpen);
     };
 
-    const navigateToCart = () => {
-        router.push('/cart');
-    };
-
     useEffect(() => {
         const fetchCartItemCount = () => {
-            if (typeof window === 'undefined') return;
+            if (typeof window === 'undefined' || !isAuthenticated) {
+                setCartItemCount(0);
+                return;
+            }
 
             try {
                 const cartData = localStorage.getItem('cart');
@@ -30,6 +32,7 @@ const Header = () => {
                 setCartItemCount(count);
             } catch (err) {
                 console.error('Error parsing cart from localStorage:', err);
+                setCartItemCount(0);
             }
         };
 
@@ -37,10 +40,20 @@ const Header = () => {
 
         window.addEventListener('cartUpdated', fetchCartItemCount);
         return () => window.removeEventListener('cartUpdated', fetchCartItemCount);
-    }, []);
+    }, [isAuthenticated]);
+
+    // Handle cart click with proper authentication check
+    const handleCartClick = () => {
+        if (isAuthenticated) {
+            router.push('/cart');
+        } else {
+            notifyEvent('Please login to view your cart', 'info');
+            // No redirect, just notify the user
+        }
+    };
 
     return (
-        <header className="sticky top-0 z-10 bg-white">
+        <header className="sticky top-0 z-10 bg-white shadow-sm">
             <div className="container mx-auto px-4">
                 <div className="flex h-16 items-center justify-between">
                     <Link href="/" className="flex items-center">
@@ -51,6 +64,7 @@ const Header = () => {
                                 width={45}
                                 height={45}
                                 priority
+                                className="rounded-md"
                             />
                             <span className="text-3xl font-bold text-primary-700">ToolUp Store</span>
                         </div>
@@ -63,17 +77,17 @@ const Header = () => {
                                     href="https://wa.me/+2348085952266"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center text-green-600 hover:text-green-700"
+                                    className="flex items-center text-green-600 hover:text-green-700 transition-colors"
                                 >
                                     <FaWhatsapp className="text-green-600 mr-1" size={20} />
                                     Support: +234 (808) 595-0080
                                 </a>
                             </li>
                             <li>
-                                <Link href="/" className="text-gray-700 hover:text-primary-700">Home</Link>
+                                <Link href="/" className="text-gray-700 hover:text-primary-700 transition-colors">Home</Link>
                             </li>
                             <li>
-                                <Link href="/contact" className="text-gray-700 hover:text-primary-700">Contact</Link>
+                                <Link href="/contact" className="text-gray-700 hover:text-primary-700 transition-colors">Contact</Link>
                             </li>
                             <li>
                                 <UserAvatarDropdown />
@@ -83,12 +97,13 @@ const Header = () => {
 
                     <div className="flex items-center">
                         <button
-                            className="relative p-2 mr-2 text-gray-700 hover:text-primary-700"
-                            onClick={navigateToCart}
-                            aria-label="View cart"
+                            className="relative p-2 mr-2 text-gray-700 hover:text-primary-700 transition-colors"
+                            onClick={handleCartClick}
+                            aria-label={isAuthenticated ? "View cart" : "Login to view cart"}
+                            disabled={loading}
                         >
                             <ShoppingCart />
-                            {cartItemCount > 0 && (
+                            {isAuthenticated && cartItemCount > 0 && (
                                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary-700 text-xs text-white">
                                     {cartItemCount}
                                 </span>
@@ -119,17 +134,17 @@ const Header = () => {
                                     href="https://wa.me/+2348085952266"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center text-green-600 hover:text-green-700"
+                                    className="flex items-center text-green-600 hover:text-green-700 transition-colors"
                                 >
                                     <FaWhatsapp className="text-green-600 mr-1" size={20} />
                                     Support: +234 (808) 595-0080
                                 </a>
                             </li>
                             <li>
-                                <Link href="/" className="block px-4 py-2 text-gray-700 hover:text-primary-700" onClick={() => setMobileMenuOpen(false)}>Home</Link>
+                                <Link href="/" className="block px-4 py-2 text-gray-700 hover:text-primary-700 transition-colors" onClick={() => setMobileMenuOpen(false)}>Home</Link>
                             </li>
                             <li>
-                                <Link href="/contact" className="block px-4 py-2 text-gray-700 hover:text-primary-700" onClick={() => setMobileMenuOpen(false)}>Contact</Link>
+                                <Link href="/contact" className="block px-4 py-2 text-gray-700 hover:text-primary-700 transition-colors" onClick={() => setMobileMenuOpen(false)}>Contact</Link>
                             </li>
                             <li className="px-4 py-2">
                                 <UserAvatarDropdown />

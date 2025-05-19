@@ -1,4 +1,4 @@
-// src/pages/product/[id].jsx - Product page with updated auth flow integration
+// src/pages/product/[id].jsx - Updated with Auth Flow Modal
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import LoadingScreen from '../../components/LoadingScreen';
+import AuthFlowModal from '../../components/AuthFlowModal';
 import { formatNairaPrice } from '../../utils/currency-formatter';
 import { toast } from 'sonner';
 import '../../styles/globals.css'
@@ -20,10 +21,22 @@ export default function ProductDetail() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [generatedDescription, setGeneratedDescription] = useState('');
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     const quantityNum = Number(product?.quantity || 0);
     const isOutOfStock = quantityNum === 0;
     const isLowStock = quantityNum > 0 && quantityNum <= 4;
+
+    // Check authentication status on mount
+    useEffect(() => {
+        const checkAuth = () => {
+            const authStatus = localStorage.getItem('isAuthenticated') === 'true';
+            setIsAuthenticated(authStatus);
+        };
+        
+        checkAuth();
+    }, []);
 
     useEffect(() => {
         // Only fetch when we have an ID
@@ -91,6 +104,12 @@ export default function ProductDetail() {
     };
 
     const handleAddToCart = async () => {
+        // Only allow adding to cart if user is authenticated
+        if (!isAuthenticated) {
+            toast.error('Please login to add items to your cart');
+            return;
+        }
+
         if (!product || !id) {
             console.error("Product or product ID is missing");
             return;
@@ -167,13 +186,24 @@ export default function ProductDetail() {
         }
     };
 
-    // Updated handleBuyNow to use the CheckoutAuthFlow component approach
+    // Updated handleBuyNow to show auth modal for non-authenticated users
     const handleBuyNow = () => {
         if (!product || !id) {
             console.error("Product or product ID is missing");
             return;
         }
 
+        // If user is authenticated, proceed directly to checkout
+        if (isAuthenticated) {
+            directCheckout();
+        } else {
+            // If not authenticated, show auth modal
+            setIsAuthModalOpen(true);
+        }
+    };
+
+    // Handle direct checkout (after auth is resolved)
+    const directCheckout = () => {
         try {
             // Create a checkout item for this single product
             const checkoutItem = {
@@ -187,12 +217,45 @@ export default function ProductDetail() {
             // Store this as the direct purchase item
             localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
             
-            // Redirect to the checkout auth flow page with direct mode
-            router.push('/checkout-auth-flow?mode=direct');
+            // Redirect to the checkout page with direct mode
+            router.push('/checkout?mode=direct');
         } catch (error) {
             console.error('Error processing direct purchase:', error);
             toast.error('Failed to proceed to checkout. Please try again.');
         }
+    };
+
+    // Auth modal handlers
+    const handleGuestCheckout = () => {
+        // Set guest checkout flag
+        localStorage.setItem('guestCheckout', 'true');
+        setIsAuthModalOpen(false);
+        
+        // Proceed with checkout as guest
+        directCheckout();
+    };
+
+    const handleLoginRegister = () => {
+        setIsAuthModalOpen(false);
+        
+        // Create a checkout item for this single product
+        const checkoutItem = {
+            productId: id,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.imageUrl,
+            quantity: quantity
+        };
+
+        // Store this as the direct purchase item before redirecting
+        localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
+        
+        // Redirect to auth page with return URL to checkout
+        router.push(`/auth?redirect=${encodeURIComponent('/checkout?mode=direct')}`);
+    };
+
+    const closeAuthModal = () => {
+        setIsAuthModalOpen(false);
     };
 
     if (isLoading) {
@@ -303,7 +366,7 @@ export default function ProductDetail() {
                             </div>
                         )}
 
-                        {/* Quantity Selector - Simplified without increment/decrement buttons */}
+                        {/* Quantity Selector */}
                         <div className="mb-6">
                             <label htmlFor="quantity" className="mb-2 block text-sm font-medium text-gray-700">
                                 Quantity
@@ -327,21 +390,24 @@ export default function ProductDetail() {
                         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <button
                                 onClick={handleAddToCart}
-                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
-                                    ? 'cursor-not-allowed bg-gray-400'
-                                    : 'bg-primary-500 hover:bg-primary-700'
-                                    }`}
-                                disabled={isOutOfStock}
+                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${
+                                    isOutOfStock || !isAuthenticated
+                                        ? 'cursor-not-allowed bg-gray-400'
+                                        : 'bg-primary-500 hover:bg-primary-700'
+                                }`}
+                                disabled={isOutOfStock || !isAuthenticated}
+                                title={!isAuthenticated ? "Login to add items to cart" : ""}
                             >
                                 Add to Cart
                             </button>
 
                             <button
                                 onClick={handleBuyNow}
-                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
-                                    ? 'cursor-not-allowed bg-gray-400'
-                                    : 'bg-green-600 hover:bg-green-700'
-                                    }`}
+                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${
+                                    isOutOfStock
+                                        ? 'cursor-not-allowed bg-gray-400'
+                                        : 'bg-green-600 hover:bg-green-700'
+                                }`}
                                 disabled={isOutOfStock}
                             >
                                 Buy Now
@@ -350,6 +416,14 @@ export default function ProductDetail() {
                     </div>
                 </div>
             </main>
+
+            {/* Auth Flow Modal */}
+            <AuthFlowModal
+                isOpen={isAuthModalOpen}
+                onClose={closeAuthModal}
+                onGuestCheckout={handleGuestCheckout}
+                onLoginRegister={handleLoginRegister}
+            />
 
             <Footer />
         </div>
