@@ -73,7 +73,7 @@ export default function ShippingAddress({ formData, handleInputChange, setShippi
     }, [formData.state, setShippingFee]);
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="container max-w-6xl mx-auto flex-grow px-4 py-8">
             <h2 className="mb-4 pb-2 border-b text-xl font-semibold text-gray-800">Shipping Address</h2>
             
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

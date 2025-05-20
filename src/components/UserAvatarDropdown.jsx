@@ -146,7 +146,7 @@ const UserAvatarDropdown = () => {
                                 <Link href="/account/settings" className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
                                     <Settings className="w-4 h-4 mr-3 text-gray-500" /> Account Settings
                                 </Link>
-                                <Link href="/help" className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+                                <Link href="/contact" className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
                                     <HelpCircle className="w-4 h-4 mr-3 text-gray-500" /> Help & Support
                                 </Link>
                             </div>
@@ -180,7 +180,7 @@ const UserAvatarDropdown = () => {
                             </div>
 
                             <div className="border-t border-gray-200 py-2">
-                                <Link href="/help" className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+                                <Link href="/contact" className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
                                     <HelpCircle className="w-4 h-4 mr-3 text-gray-500" /> Help & Support
                                 </Link>
                                 <div className="flex items-center px-4 py-2 text-sm text-gray-500">

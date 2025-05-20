@@ -83,7 +83,7 @@ const OrdersPage = () => {
     return (
         <>
             <Header />
-            <main className="container max-w-4xl mx-auto px-4 py-8">
+            <main className="container max-w-6xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-6">
                     <button
                         onClick={() => router.back()}

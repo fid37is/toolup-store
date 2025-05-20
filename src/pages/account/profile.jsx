@@ -34,7 +34,7 @@ const ProfilePage = () => {
 
     return (
         <><Header />
-            <div className="max-w-4xl mx-auto px-4 py-8">
+            <div className="container max-w-6xl mx-auto flex-grow px-4 py-8">
                 <div className="flex justify-between items-center mb-6">
                     <button
                         onClick={() => window.history.back()}
