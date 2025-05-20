@@ -5,7 +5,6 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { notifyEvent } from '../../components/Notification';
 import useAuthCheck from '../../hooks/useAuthCheck';
-import LoadingScreen from '../../components/LoadingScreen';
 
 const OrdersPage = () => {
     const router = useRouter();
@@ -60,17 +59,31 @@ const OrdersPage = () => {
     }, [isAuthenticated, user, authLoading, router]);
 
     if (authLoading) {
-        return <LoadingScreen message="Checking authentication..." />;
+        return (
+            <div className="flex justify-center py-12">
+                <div className="text-center">
+                    <div className="inline-block w-12 h-12 border-4 border-t-accent-500 rounded-full animate-spin"></div>
+                    <p className="mt-4 text-gray-600">Checking authentication...</p>
+                </div>
+            </div>
+        );
     }
 
     if (!isAuthenticated) {
-        return <LoadingScreen message="Redirecting to login..." />;
+        return (
+            <div className="flex justify-center py-12">
+                <div className="text-center">
+                    <div className="inline-block w-12 h-12 border-4 border-t-accent-500 rounded-full animate-spin"></div>
+                    <p className="mt-4 text-gray-600">Redirecting to login...</p>
+                </div>
+            </div>
+        );
     }
 
     return (
         <>
             <Header />
-            <main className="container max-w-4xl mx-auto px-4 py-8">
+            <main className="container max-w-6xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-6">
                     <button
                         onClick={() => router.back()}
@@ -78,7 +91,7 @@ const OrdersPage = () => {
                     >
                         <span className="mr-1">←</span> Back
                     </button>
-                    <h1 className="text-2xl font-bold">My Orders</h1>
+                    <h1 className="text-3xl font-bold">My Orders</h1>
                 </div>
 
                 {loading ? (
@@ -174,7 +187,7 @@ const OrdersPage = () => {
 
                                 <div className="bg-gray-50 p-4 border-t">
                                     <button
-                                        onClick={() => router.push(`/orders/${order.orderId}`)}
+                                        onClick={() => router.push(`/account/orders/${order.orderId}`)}
                                         className="text-primary-600 hover:underline text-sm"
                                     >
                                         View Order Details →

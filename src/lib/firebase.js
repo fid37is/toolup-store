@@ -1,6 +1,7 @@
-// src/lib/firebase.js
+// src/lib/firebase.js - Fixed exports
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 // Your Firebase configuration - make sure these env variables are defined
 const firebaseConfig = {
@@ -12,12 +13,11 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase - export as a named export
-export const firebaseApp = initializeApp(firebaseConfig);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
 
-// Initialize services - also export as named exports
-export const auth = getAuth(firebaseApp);
-export const googleProvider = new GoogleAuthProvider();
-
-// For backwards compatibility if code is expecting a default export
-export default firebaseApp;
+// Export the app for those components that need it
+export { app, auth, db, googleProvider };
