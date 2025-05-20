@@ -128,8 +128,8 @@ export default function Contact() {
                             <div className="flex items-center">
                                 <Clock className="w-5 h-5 text-gray-500 mr-3" />
                                 <div className="text-gray-600">
-                                    <div>Mon-Fri: 8:00 AM - 6:00 PM</div>
-                                    <div>Sat: 9:00 AM - 4:00 PM</div>
+                                    <div>Mon-Fri: 8:00 AM - 9:00 PM</div>
+                                    <div>Sat: 9:00 AM - 9:00 PM</div>
                                     <div>Sun: Closed</div>
                                 </div>
                             </div>
@@ -199,7 +199,7 @@ export default function Contact() {
                                 <div>
                                     <button
                                         type="submit"
-                                        className="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-500 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                        className="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded text-white bg-primary-500 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                                     >
                                         Send Message
                                     </button>
