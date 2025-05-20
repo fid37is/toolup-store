@@ -5,12 +5,12 @@ import { Toaster } from 'sonner';
 import '../styles/globals.css';
 
 // Import and initialize Firebase at app startup
-import { firebaseApp } from '../lib/firebase';
+import { app } from '../lib/firebase';
 
 function MyApp({ Component, pageProps }) {
     // Optionally add Firebase initialization logging if helpful for debugging
     useEffect(() => {
-        if (firebaseApp) {
+        if (app) {
             console.log('Firebase initialized successfully in _app.jsx');
         }
     }, []);
