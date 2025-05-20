@@ -5,6 +5,7 @@ import Head from 'next/head';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { toast } from 'sonner';
+
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -23,7 +24,7 @@ export default function Auth() {
     const [activeTab, setActiveTab] = useState('login');
     const [isLoading, setIsLoading] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-    
+
     // Password visibility states
     const [showLoginPassword, setShowLoginPassword] = useState(false);
     const [showRegisterPassword, setShowRegisterPassword] = useState(false);
@@ -82,13 +83,13 @@ export default function Auth() {
                 position: 'top-center',
                 duration: 3000,
             });
-            
+
             // Auth state listener will handle redirect
         } catch (error) {
             // Handle specific Firebase error codes
             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                 toast.error('Invalid email or password. Please try again.', {
-                    position: 'top-center', 
+                    position: 'top-center',
                     duration: 4000,
                 });
             } else {
@@ -113,7 +114,7 @@ export default function Auth() {
             });
             return;
         }
-        
+
         if (registerForm.password !== registerForm.confirmPassword) {
             toast.error('Passwords do not match', {
                 position: 'top-center',
@@ -121,7 +122,7 @@ export default function Auth() {
             });
             return;
         }
-        
+
         if (registerForm.password.length < 6) {
             toast.error('Password must be at least 6 characters long', {
                 position: 'top-center',
@@ -134,18 +135,33 @@ export default function Auth() {
 
         try {
             // Create user with email and password
-            await createUserWithEmailAndPassword(
+            const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 registerForm.email,
                 registerForm.password
             );
+
+            // Update the display name in Firebase Auth
+            await updateProfile(userCredential.user, {
+                displayName: registerForm.name
+            });
+
+            // Create user document in Firestore
+            const nameParts = registerForm.name.trim().split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            await createUserDocument(userCredential.user, {
+                firstName,
+                lastName
+            });
 
             // Show success notification
             toast.success('Account created successfully!', {
                 position: 'top-center',
                 duration: 3000,
             });
-            
+
             // Auth state listener will handle redirect
         } catch (error) {
             // Handle specific Firebase error codes
@@ -174,13 +190,17 @@ export default function Auth() {
         setIsGoogleLoading(true);
 
         try {
-            await signInWithPopup(auth, googleProvider);
+            const result = await signInWithPopup(auth, googleProvider);
+
+            // Create user document if it doesn't exist
+            await createUserDocument(result.user);
+
             // Show success notification
             toast.success('Signed in with Google successfully!', {
                 position: 'top-center',
                 duration: 3000,
             });
-            
+
             // Auth state listener will handle redirect
         } catch (error) {
             toast.error('Google sign-in failed. Please try again.', {
@@ -212,11 +232,11 @@ export default function Auth() {
     const toggleLoginPasswordVisibility = () => {
         setShowLoginPassword(!showLoginPassword);
     };
-    
+
     const toggleRegisterPasswordVisibility = () => {
         setShowRegisterPassword(!showRegisterPassword);
     };
-    
+
     const toggleConfirmPasswordVisibility = () => {
         setShowConfirmPassword(!showConfirmPassword);
     };
@@ -338,7 +358,7 @@ export default function Auth() {
                                             className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 pr-10 transition-all"
                                             placeholder="••••••••"
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={toggleLoginPasswordVisibility}
                                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
@@ -444,7 +464,7 @@ export default function Auth() {
                                             className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 pr-10 transition-all"
                                             placeholder="••••••••"
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={toggleRegisterPasswordVisibility}
                                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
@@ -475,7 +495,7 @@ export default function Auth() {
                                             className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 pr-10 transition-all"
                                             placeholder="••••••••"
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={toggleConfirmPasswordVisibility}
                                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"

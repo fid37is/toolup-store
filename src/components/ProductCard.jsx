@@ -19,7 +19,7 @@ const ProductCard = ({ product, onViewImage }) => {
     const handleAddToWishlist = async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         if (!isAuthenticated) {
             promptAuthentication('add to wishlist');
             return;
@@ -59,7 +59,7 @@ const ProductCard = ({ product, onViewImage }) => {
     const handleAddToCart = async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         if (!isAuthenticated) {
             promptAuthentication('add to cart');
             return;
@@ -104,10 +104,10 @@ const ProductCard = ({ product, onViewImage }) => {
                         <Image
                             src={product.imageUrl || '/placeholder-product.jpg'}
                             alt={product.name}
-                            className="object-contain"
+                            className="object-contain rounded-md transition-transform duration-300 ease-in-out hover:scale-105 contrast-125"
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            quality={85}
+                            quality={100} // maximize image quality
                             loading="lazy"
                             placeholder="blur"
                             blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmM2Y0ZjYiLz48L3N2Zz4="

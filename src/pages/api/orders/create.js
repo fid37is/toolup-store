@@ -3,6 +3,15 @@
 import { google } from 'googleapis';
 
 let jwtClient = null;
+let nodemailer = null;
+
+// Dynamically import nodemailer only when needed (server-side only)
+const getNodemailer = async () => {
+    if (!nodemailer) {
+        nodemailer = await import('nodemailer');
+    }
+    return nodemailer.default;
+};
 
 const createJwtClient = () => {
     if (process.env.GOOGLE_CREDENTIALS_B64) {
@@ -47,6 +56,125 @@ const generateOrderId = () => {
     return `ORD-${timestamp}-${random}`;
 };
 
+// Create email transporter
+const createEmailTransporter = async () => {
+    const nodemailerModule = await getNodemailer();
+    return nodemailerModule.createTransporter({
+        service: 'gmail', // or your preferred email service
+        auth: {
+            user: process.env.EMAIL_USER, // Your email
+            pass: process.env.EMAIL_PASS  // Your email password or app password
+        }
+    });
+};
+
+// Format currency
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: 'NGN'
+    }).format(amount);
+};
+
+// Send order confirmation email to guest
+const sendGuestOrderEmail = async (orderData) => {
+    try {
+        const transporter = await createEmailTransporter();
+        
+        const { customer, items, totalAmount, shippingFee, orderId, paymentMethod } = orderData;
+        const subtotal = totalAmount - shippingFee;
+        
+        const itemsHtml = items.map(item => `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.price)}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.price * item.quantity)}</td>
+            </tr>
+        `).join('');
+
+        const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #2D5016; text-align: center;">Order Confirmation</h1>
+                <p>Dear ${customer.firstName} ${customer.lastName},</p>
+                <p>Thank you for your order! Here are your order details:</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h2 style="color: #2D5016; margin-top: 0;">Order #${orderId}</h2>
+                    <p><strong>Order Date:</strong> ${new Date().toLocaleDateString()}</p>
+                    <p><strong>Payment Method:</strong> ${paymentMethod === 'pay_on_pickup' ? 'Pay on Pickup' : paymentMethod}</p>
+                </div>
+
+                <h3>Items Ordered:</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Item</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Qty</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Price</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span>Subtotal:</span>
+                        <span>${formatCurrency(subtotal)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span>Shipping:</span>
+                        <span>${formatCurrency(shippingFee)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; border-top: 2px solid #ddd; padding-top: 10px;">
+                        <span>Total:</span>
+                        <span>${formatCurrency(totalAmount)}</span>
+                    </div>
+                </div>
+
+                <h3>Shipping Address:</h3>
+                <p>
+                    ${customer.firstName} ${customer.lastName}<br>
+                    ${customer.address}<br>
+                    ${customer.city}, ${customer.lga}<br>
+                    ${customer.state} ${customer.zip}<br>
+                    Phone: ${customer.phoneNumber}
+                </p>
+
+                <div style="margin: 30px 0; padding: 20px; background-color: #e8f5e9; border-radius: 8px;">
+                    <h3 style="color: #2D5016; margin-top: 0;">What's Next?</h3>
+                    <ul>
+                        <li>We'll process your order within 1-2 business days</li>
+                        <li>You'll receive tracking information once your order ships</li>
+                        <li>If you have any questions, contact us at support@toolupstore.com</li>
+                    </ul>
+                </div>
+
+                <p style="text-align: center; color: #666; margin-top: 30px;">
+                    Thank you for shopping with ToolUp Store!
+                </p>
+            </div>
+        `;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: customer.email,
+            subject: `Order Confirmation - ${orderId}`,
+            html: emailHtml
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('Order confirmation email sent to:', customer.email);
+        return true;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        return false;
+    }
+};
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -56,17 +184,15 @@ export default async function handler(req, res) {
         const {
             userId,
             items,
-            totalAmount,
+            customer,
+            isAuthenticated,
+            isGuestCheckout,
+            shippingFee,
             paymentMethod,
-            customerName,
-            customerEmail,
-            customerPhone,
-            shippingAddress,
-            state,
-            lga,
-            town,
-            zip,
-            additionalInfo
+            totalAmount,
+            currency,
+            orderDate,
+            sendGuestEmail
         } = req.body;
 
         // Basic validation
@@ -74,6 +200,14 @@ export default async function handler(req, res) {
             return res.status(400).json({
                 error: 'Missing required fields',
                 requiredFields: 'userId, items (array), totalAmount, paymentMethod'
+            });
+        }
+
+        // Validate customer information
+        if (!customer || !customer.email || !customer.firstName || !customer.lastName) {
+            return res.status(400).json({
+                error: 'Missing customer information',
+                requiredFields: 'customer.email, customer.firstName, customer.lastName'
             });
         }
 
@@ -88,7 +222,7 @@ export default async function handler(req, res) {
 
         // Generate a new order ID
         const orderId = generateOrderId();
-        const orderDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        const orderDateFormatted = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
         const status = 'pending'; // Initial status
 
         // Step 1: Get the headers from the Orders sheet to ensure we insert data in the right order
@@ -104,9 +238,10 @@ export default async function handler(req, res) {
             } else {
                 // If no headers exist, define the default structure
                 orderHeaders = [
-                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'paymentMethod',
-                    'customerName', 'customerEmail', 'customerPhone', 'shippingAddress', 'state',
-                    'lga', 'town', 'zip', 'additionalInfo'
+                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee', 
+                    'paymentMethod', 'currency', 'isAuthenticated', 'isGuestCheckout',
+                    'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone', 
+                    'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo'
                 ];
                 
                 // Create the headers if they don't exist
@@ -136,9 +271,10 @@ export default async function handler(req, res) {
                 });
                 
                 orderHeaders = [
-                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'paymentMethod',
-                    'customerName', 'customerEmail', 'customerPhone', 'shippingAddress', 'state',
-                    'lga', 'town', 'zip', 'additionalInfo'
+                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee', 
+                    'paymentMethod', 'currency', 'isAuthenticated', 'isGuestCheckout',
+                    'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone', 
+                    'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo'
                 ];
                 
                 await sheets.spreadsheets.values.update({
@@ -171,21 +307,83 @@ export default async function handler(req, res) {
         // Map values to the correct positions based on headers
         orderHeaders.forEach((header, index) => {
             const lowerHeader = header.toLowerCase();
-            if (lowerHeader === 'orderid') orderRow[index] = orderId;
-            else if (lowerHeader === 'userid' || lowerHeader === 'user_id') orderRow[index] = userId;
-            else if (lowerHeader === 'orderdate' || lowerHeader === 'date') orderRow[index] = orderDate;
-            else if (lowerHeader === 'status') orderRow[index] = status;
-            else if (lowerHeader === 'totalamount' || lowerHeader === 'total') orderRow[index] = totalAmount.toString();
-            else if (lowerHeader === 'paymentmethod') orderRow[index] = paymentMethod;
-            else if (lowerHeader === 'customername') orderRow[index] = customerName || '';
-            else if (lowerHeader === 'customeremail') orderRow[index] = customerEmail || '';
-            else if (lowerHeader === 'customerphone') orderRow[index] = customerPhone || '';
-            else if (lowerHeader === 'shippingaddress') orderRow[index] = shippingAddress || '';
-            else if (lowerHeader === 'state') orderRow[index] = state || '';
-            else if (lowerHeader === 'lga') orderRow[index] = lga || '';
-            else if (lowerHeader === 'town') orderRow[index] = town || '';
-            else if (lowerHeader === 'zip') orderRow[index] = zip || '';
-            else if (lowerHeader === 'additionalinfo') orderRow[index] = additionalInfo || '';
+            switch (lowerHeader) {
+                case 'orderid':
+                    orderRow[index] = orderId;
+                    break;
+                case 'userid':
+                case 'user_id':
+                    orderRow[index] = userId;
+                    break;
+                case 'orderdate':
+                case 'date':
+                    orderRow[index] = orderDateFormatted;
+                    break;
+                case 'status':
+                    orderRow[index] = status;
+                    break;
+                case 'totalamount':
+                case 'total':
+                    orderRow[index] = totalAmount.toString();
+                    break;
+                case 'shippingfee':
+                case 'shipping':
+                    orderRow[index] = shippingFee?.toString() || '0';
+                    break;
+                case 'paymentmethod':
+                    orderRow[index] = paymentMethod;
+                    break;
+                case 'currency':
+                    orderRow[index] = currency || 'NGN';
+                    break;
+                case 'isauthenticated':
+                    orderRow[index] = isAuthenticated ? 'true' : 'false';
+                    break;
+                case 'isguestcheckout':
+                    orderRow[index] = isGuestCheckout ? 'true' : 'false';
+                    break;
+                case 'customerfirstname':
+                case 'firstname':
+                    orderRow[index] = customer.firstName || '';
+                    break;
+                case 'customerlastname':
+                case 'lastname':
+                    orderRow[index] = customer.lastName || '';
+                    break;
+                case 'customeremail':
+                case 'email':
+                    orderRow[index] = customer.email || '';
+                    break;
+                case 'customerphone':
+                case 'phone':
+                    orderRow[index] = customer.phoneNumber || '';
+                    break;
+                case 'shippingaddress':
+                case 'address':
+                    orderRow[index] = customer.address || '';
+                    break;
+                case 'city':
+                    orderRow[index] = customer.city || '';
+                    break;
+                case 'state':
+                    orderRow[index] = customer.state || '';
+                    break;
+                case 'lga':
+                    orderRow[index] = customer.lga || '';
+                    break;
+                case 'town':
+                    orderRow[index] = customer.town || '';
+                    break;
+                case 'zip':
+                    orderRow[index] = customer.zip || '';
+                    break;
+                case 'additionalinfo':
+                    orderRow[index] = customer.additionalInfo || '';
+                    break;
+                default:
+                    // Keep empty string for unknown headers
+                    break;
+            }
         });
 
         // Step 2: Add the new order to the Orders sheet
@@ -271,11 +469,28 @@ export default async function handler(req, res) {
             // Map values to the correct positions based on headers
             itemHeaders.forEach((header, index) => {
                 const lowerHeader = header.toLowerCase();
-                if (lowerHeader === 'orderid') row[index] = orderId;
-                else if (lowerHeader === 'productid') row[index] = item.productId || '';
-                else if (lowerHeader === 'productname' || lowerHeader === 'name') row[index] = item.name || '';
-                else if (lowerHeader === 'quantity' || lowerHeader === 'qty') row[index] = item.quantity?.toString() || '1';
-                else if (lowerHeader === 'price') row[index] = item.price?.toString() || '0';
+                switch (lowerHeader) {
+                    case 'orderid':
+                        row[index] = orderId;
+                        break;
+                    case 'productid':
+                        row[index] = item.productId || '';
+                        break;
+                    case 'productname':
+                    case 'name':
+                        row[index] = item.name || '';
+                        break;
+                    case 'quantity':
+                    case 'qty':
+                        row[index] = item.quantity?.toString() || '1';
+                        break;
+                    case 'price':
+                        row[index] = item.price?.toString() || '0';
+                        break;
+                    default:
+                        // Keep empty string for unknown headers
+                        break;
+                }
             });
             
             return row;
@@ -293,18 +508,40 @@ export default async function handler(req, res) {
             });
         }
 
+        // Step 5: Send email to guest users if requested
+        let emailSent = false;
+        if (sendGuestEmail && !isAuthenticated) {
+            emailSent = await sendGuestOrderEmail({
+                orderId,
+                customer,
+                items,
+                totalAmount,
+                shippingFee: shippingFee || 0,
+                paymentMethod,
+                currency: currency || 'NGN'
+            });
+        }
+
         // Return success with order information
         return res.status(201).json({
             success: true,
             orderId,
             message: 'Order created successfully',
+            emailSent: emailSent,
             order: {
                 orderId,
                 userId,
-                orderDate,
+                orderDate: orderDateFormatted,
                 status,
                 totalAmount,
+                shippingFee: shippingFee || 0,
                 paymentMethod,
+                customer: {
+                    firstName: customer.firstName,
+                    lastName: customer.lastName,
+                    email: customer.email,
+                    phone: customer.phoneNumber
+                },
                 items: items.map(item => ({
                     productId: item.productId,
                     name: item.name,
