@@ -1,73 +1,54 @@
-// src/components/LoadingScreen.jsx
 import { motion } from 'framer-motion';
+import Image from 'next/image';
+import logo from '/public/favy.png'; // Make sure this is placed in the /public folder
 
 export default function LoadingScreen({ message = 'Loading...' }) {
-    // Circular loader animation
-    const circleVariants = {
-        initial: { rotate: 0 },
-        animate: {
-            rotate: 360,
-            transition: {
-                duration: 1.5,
-                ease: "easeInOut",
-                repeat: Infinity,
-                repeatType: "loop"
-            }
-        }
-    };
-
-    // Progress line animation
-    const lineVariants = {
-        hidden: { scaleX: 0, originX: 0 },
-        visible: {
-            scaleX: 1,
-            transition: {
-                duration: 1.8,
-                ease: "easeInOut",
-                repeat: Infinity,
-                repeatType: "reverse",
-                repeatDelay: 0.2
-            }
-        }
-    };
-
-    // Animated bar variants
-    const barVariants = {
-        initial: { scaleY: 0.2, opacity: 0.6 },
-        animate: index => ({
-            scaleY: [0.2, 1, 0.2],
-            opacity: [0.6, 1, 0.6],
-            transition: {
-                duration: 1.2,
-                repeat: Infinity,
-                delay: index * 0.1,
-                ease: "easeInOut"
-            }
-        })
-    };
+    const ringSpecs = [
+        { color: '#ffbb33', size: 80 }, // Accent (inner)
+        { color: '#003380', size: 70 }, // Primary (outer)
+    ];
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
-            <div className="flex flex-col items-center space-y-12">
+            <div className="relative w-[100px] h-[100px] flex items-center justify-center mb-6">
+                {ringSpecs.map(({ color, size }, index) => (
+                    <motion.div
+                        key={index}
+                        className="absolute rounded-full"
+                        style={{
+                            width: `${size}px`,
+                            height: `${size}px`,
+                            border: `14px solid ${color}`,
+                            background: 'transparent',
+                            zIndex: 1,
+                        }}
+                        animate={{
+                            scale: [1, 1.12, 1],
+                            opacity: [1, 0.8, 1],
+                        }}
+                        transition={{
+                            duration: 1.4,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                            delay: index * 0.2,
+                        }}
+                    />
+                ))}
 
-                {/* Animated Bars */}
-                <div className="flex items-end space-x-2">
-                    {[0, 1, 2, 3, 4].map((bar, index) => (
-                        <motion.div
-                            key={bar}
-                            custom={index}
-                            variants={barVariants}
-                            initial="initial"
-                            animate="animate"
-                            className="w-1.5 h-12 bg-primary-400 rounded-full"
-                            style={{ transformOrigin: 'bottom' }}
-                        />
-                    ))}
+                {/* Center logo */}
+                <div className="relative z-50 bg-white rounded-full w-16 h-16 flex items-center justify-center shadow">
+                    <Image
+                        src={logo}
+                        alt="ToolUp Logo"
+                        width={80}
+                        height={80}
+                        className="object-contain"
+                    />
                 </div>
-
-                {/* Optional message */}
-                <p className="text-sm text-gray-500">{message}</p>
             </div>
+
+            {/* Message below */}
+            <p className="text-sm text-gray-500">{message}</p>
         </div>
     );
 }
