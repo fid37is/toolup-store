@@ -59,12 +59,12 @@ const Header = () => {
                     <Link href="/" className="flex items-center">
                         <div className="flex items-center space-x-2">
                             <Image
-                                src="/logo 2.png"
+                                src="/logo-2.png" // ✅ renamed image without spaces
                                 alt="ToolUp Store Logo"
                                 width={45}
                                 height={45}
-                                priority
-                                className="rounded-md"
+                                priority // ✅ marks this as high priority for LCP
+                                className="rounded-md h-auto w-auto" // ✅ maintain aspect ratio
                             />
                             <span className="text-3xl font-bold text-primary-700">ToolUp Store</span>
                         </div>
