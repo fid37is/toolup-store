@@ -9,13 +9,13 @@ import Footer from '../../components/Footer';
 
 const WishlistPage = () => {
     const [wishlistItems, setWishlistItems] = useState([]);
-    
+
     // Format price in Nigerian Naira
     const formatNairaPrice = (price) => {
         const exchangeRate = 1500; // Adjust if needed
         const nairaPrice = parseFloat(price) * exchangeRate;
-        return new Intl.NumberFormat('en-NG', { 
-            style: 'currency', 
+        return new Intl.NumberFormat('en-NG', {
+            style: 'currency',
             currency: 'NGN',
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
@@ -98,18 +98,19 @@ const WishlistPage = () => {
     return (
         <>
             <Header />
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-6">
+            <main className="container max-w-6xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+                <div className="flex items-center justify-between mb-8">
                     <button
-                        onClick={() => window.history.back()}
-                        className="sticky top-4 z-10 mb-4 inline-flex items-center text-primary-500 hover:text-primary-700 font-medium"
+                        onClick={() => router.back()}
+                        className="flex items-center text-primary-700 hover:text-primary-500 transition-colors font-medium"
                     >
-                        <svg className="h-5 w-5 mr-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Back
+                        <span className="mr-2 text-lg">←</span> Back
                     </button>
-                    <h1 className="text-3xl font-bold text-gray-800">My Wishlist</h1>
+                    <h1 className="text-3xl font-bold text-gray-800 relative">
+                        My Wishlist
+                        <span className="block h-1 w-12 bg-accent-500 mt-2 rounded-full"></span>
+                    </h1>
+
 
                     {wishlistItems.length > 0 && (
                         <button
@@ -190,7 +191,7 @@ const WishlistPage = () => {
                         </ul>
                     </div>
                 )}
-            </div>
+            </main>
             <Footer />
         </>
     );

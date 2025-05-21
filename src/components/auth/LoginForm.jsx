@@ -1,6 +1,5 @@
-// 1. src/components/auth/LoginForm.jsx
 import { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { createUserDocument } from '../../lib/firestore';
 import { toast } from 'sonner';
@@ -10,15 +9,15 @@ export default function LoginForm({ isLoading, setIsLoading }) {
     const [showPassword, setShowPassword] = useState(false);
     const [loginForm, setLoginForm] = useState({
         email: '',
-        password: '',
-        acceptTerms: false
+        password: ''
     });
+    const [resetEmailSent, setResetEmailSent] = useState(false);
 
     const handleInputChange = (e) => {
-        const { name, value, type, checked } = e.target;
+        const { name, value } = e.target;
         setLoginForm({
             ...loginForm,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: value
         });
     };
 
@@ -26,18 +25,57 @@ export default function LoginForm({ isLoading, setIsLoading }) {
         setShowPassword(!showPassword);
     };
 
-    const handleSubmit = async (e) => {
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
+    
+    const handleForgotPassword = async (e) => {
         e.preventDefault();
-
-        // Check terms acceptance
-        if (!loginForm.acceptTerms) {
-            toast.error('You must accept the terms and conditions to continue', {
+        
+        if (!loginForm.email) {
+            toast.error('Please enter your email address first', {
                 position: 'top-right',
                 duration: 3000,
             });
             return;
         }
+        
+        setIsResettingPassword(true);
+        
+        try {
+            // Check if user exists before sending reset email
+            const methods = await import('firebase/auth').then(module => 
+                module.fetchSignInMethodsForEmail(auth, loginForm.email)
+            );
+            
+            // If methods array is empty, the user doesn't exist
+            if (methods.length === 0) {
+                toast.error('No account found with this email address.', {
+                    position: 'top-right',
+                    duration: 4000,
+                });
+                setIsResettingPassword(false);
+                return;
+            }
+            
+            // User exists, send the reset email
+            await sendPasswordResetEmail(auth, loginForm.email);
+            setResetEmailSent(true);
+            toast.success('Password reset email sent! Check your inbox.', {
+                position: 'top-right',
+                duration: 5000,
+            });
+        } catch (error) {
+            console.error('Password reset error:', error);
+            toast.error('Failed to send reset email. Please try again.', {
+                position: 'top-right',
+                duration: 4000,
+            });
+        } finally {
+            setIsResettingPassword(false);
+        }
+    };
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
         setIsLoading(true);
 
         try {
@@ -130,32 +168,35 @@ export default function LoginForm({ isLoading, setIsLoading }) {
                 </div>
             </div>
 
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                    <input
-                        id="acceptTerms"
-                        name="acceptTerms"
-                        type="checkbox"
-                        checked={loginForm.acceptTerms}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
-                    />
-                    <label htmlFor="acceptTerms" className="ml-2 block text-sm text-gray-700">
-                        I accept the <a href="/terms" className="text-primary-600 hover:underline" target="_blank" rel="noopener noreferrer">Terms</a>
-                    </label>
-                </div>
-
-                <div className="text-sm">
-                    <a href="#" className="font-medium text-primary-600 hover:text-primary-700 hover:underline">
-                        Forgot password?
-                    </a>
-                </div>
+            <div className="flex justify-end mb-6">
+                <button 
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={isResettingPassword || resetEmailSent}
+                    className="text-sm font-medium text-primary-500 hover:text-primary-700 hover:underline focus:outline-none flex items-center"
+                >
+                    {isResettingPassword ? (
+                        <>
+                            <span className="mr-2">
+                                <svg className="animate-spin h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
+                            Sending...
+                        </>
+                    ) : resetEmailSent ? (
+                        'Reset email sent'
+                    ) : (
+                        'Forgot password?'
+                    )}
+                </button>
             </div>
 
             <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-md hover:shadow-lg active:shadow-inner active:bg-primary-800 transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'}`}
+                className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-md hover:shadow-lg active:shadow-inner bg-primary-700 transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-500'}`}
             >
                 {isLoading ? (
                     <span className="flex items-center justify-center">

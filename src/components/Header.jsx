@@ -59,7 +59,7 @@ const Header = () => {
                     <Link href="/" className="flex items-center">
                         <div className="flex items-center space-x-2">
                             <Image
-                                src="/fav 2.png"
+                                src="/logo 2.png"
                                 alt="ToolUp Store Logo"
                                 width={45}
                                 height={45}

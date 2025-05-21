@@ -14,18 +14,17 @@ const AccountSettingsPage = () => {
     return (
         <>
             <Header />
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-6">
+            <main className="container max-w-6xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+                <div className="flex items-center justify-between mb-8">
                     <button
-                        onClick={() => window.history.back()}
-                        className="inline-flex items-center text-primary-500 hover:text-primary-700 font-medium"
+                        onClick={() => router.back()}
+                        className="flex items-center text-primary-700 hover:text-primary-500 transition-colors font-medium"
                     >
-                        <ChevronLeft className="h-5 w-5 mr-1" />
-                        Back
+                        <span className="mr-2 text-lg">←</span> Back
                     </button>
-
-                    <h1 className="text-3xl font-bold text-gray-800 text-right ml-auto">
-                        Settings
+                    <h1 className="text-3xl font-bold text-gray-800 relative">
+                        System Settings
+                        <span className="block h-1 w-12 bg-accent-500 mt-2 rounded-full"></span>
                     </h1>
                 </div>
 
@@ -107,7 +106,7 @@ const AccountSettingsPage = () => {
                         {activeTab === 'security' && <SecuritySettings />}
                     </div>
                 </div>
-            </div>
+            </main>
             <Footer />
         </>
     );

@@ -55,7 +55,7 @@ export default function GoogleSignIn() {
             }
 
             // Show success notification
-            toast.success('Signed in with Google successfully!', {
+            toast.success('Signed in successfully!', {
                 position: 'top-right',
                 duration: 3000,
             });

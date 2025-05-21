@@ -30,7 +30,7 @@ const ProfilePage = () => {
     // Format the date for display
     const formatDate = (dateString) => {
         if (!dateString) return '';
-        
+
         try {
             return new Date(dateString).toLocaleDateString();
         } catch (error) {
@@ -42,7 +42,7 @@ const ProfilePage = () => {
     // Format join date for display
     const formatJoinDate = (dateString) => {
         if (!dateString) return '';
-        
+
         try {
             const date = new Date(dateString);
             // Return month and year
@@ -60,10 +60,10 @@ const ProfilePage = () => {
                     // Get user document from Firestore
                     const userDocRef = doc(db, "users", currentUser.uid);
                     const userDocSnap = await getDoc(userDocRef);
-                    
+
                     if (userDocSnap.exists()) {
                         const userData = userDocSnap.data();
-                        
+
                         // Set user state with data from Firestore
                         setUser({
                             uid: currentUser.uid,
@@ -76,7 +76,7 @@ const ProfilePage = () => {
                             firstName: userData.firstName || '',
                             lastName: userData.lastName || '',
                         });
-                        
+
                         // Also set form data
                         setFormData({
                             firstName: userData.firstName || '',
@@ -100,7 +100,7 @@ const ProfilePage = () => {
                             firstName: nameParts[0] || '',
                             lastName: nameParts.slice(1).join(' ') || '',
                         };
-                        
+
                         setUser(defaultUser);
                         setFormData({
                             firstName: defaultUser.firstName,
@@ -121,7 +121,7 @@ const ProfilePage = () => {
                 // Redirect to login if not logged in
                 router.push('/auth?redirect=/profile');
             }
-            
+
             setIsLoading(false);
         });
 
@@ -147,7 +147,7 @@ const ProfilePage = () => {
 
         try {
             setIsLoading(true);
-            
+
             // Update Firestore document
             const userDocRef = doc(db, "users", user.uid);
             await updateDoc(userDocRef, {
@@ -158,7 +158,7 @@ const ProfilePage = () => {
                 dob: formData.dob,
                 lastUpdated: new Date().toISOString()
             });
-            
+
             // Update local state
             setUser({
                 ...user,
@@ -169,7 +169,7 @@ const ProfilePage = () => {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
             });
-            
+
             setIsEditing(false);
             toast.success("Profile updated successfully!", {
                 position: 'top-center',
@@ -224,18 +224,17 @@ const ProfilePage = () => {
     return (
         <>
             <Header />
-            <div className="container max-w-6xl mx-auto flex-grow px-4 py-8">
-                <div className="flex justify-between items-center mb-6">
+            <main className="container max-w-6xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+                <div className="flex items-center justify-between mb-8">
                     <button
-                        onClick={() => window.history.back()}
-                        className="inline-flex items-center text-primary-500 hover:text-primary-700 font-medium"
+                        onClick={() => router.back()}
+                        className="flex items-center text-primary-700 hover:text-primary-500 transition-colors font-medium"
                     >
-                        <ChevronLeft className="h-5 w-5 mr-1" />
-                        Back
+                        <span className="mr-2 text-lg">←</span> Back
                     </button>
-
-                    <h1 className="text-3xl font-bold text-gray-800 text-right ml-auto">
+                    <h1 className="text-3xl font-bold text-gray-800 relative">
                         My Profile
+                        <span className="block h-1 w-12 bg-accent-500 mt-2 rounded-full"></span>
                     </h1>
                 </div>
 
@@ -452,7 +451,7 @@ const ProfilePage = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
             <Footer />
         </>
     );
