@@ -1,35 +1,54 @@
-// src/components/checkout/ShippingAddress.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Map, Home, Building, Plus, Trash2, Check, ChevronLeft, X } from 'lucide-react';
 import { getStates, getLGAs } from '../../utils/locationService';
+import Header from '../../components/Header';
+import Footer from '../../components/Footer';
 
-export default function ShippingAddress({
-    formData,
-    handleInputChange,
-    setShippingFee,
-    baseShippingFee,
-    setBaseShippingFee,
-    paymentMethod
-}) {
+const ShippingAddressesPage = () => {
+    const [addresses, setAddresses] = useState([]);
+    const [isAddingNew, setIsAddingNew] = useState(false);
+    const [isEditing, setIsEditing] = useState(null);
     const [states, setStates] = useState([]);
     const [lgas, setLGAs] = useState([]);
     const [isLoadingStates, setIsLoadingStates] = useState(false);
     const [isLoadingLGAs, setIsLoadingLGAs] = useState(false);
 
-    // Fetch states from API on component mount only once
+    const [formData, setFormData] = useState({
+        addressName: '',
+        fullName: '',
+        phoneNumber: '',
+        address: '',
+        state: '',
+        lga: '',
+        city: '',
+        town: '',
+        zip: '',
+        additionalInfo: '',
+        isDefault: false
+    });
+
+    // Fetch addresses from API/localStorage on mount
+    useEffect(() => {
+        const savedAddresses = localStorage.getItem('shippingAddresses');
+        if (savedAddresses) {
+            setAddresses(JSON.parse(savedAddresses));
+        }
+    }, []);
+
+    // Save addresses to localStorage when they change
+    useEffect(() => {
+        if (addresses.length > 0) {
+            localStorage.setItem('shippingAddresses', JSON.stringify(addresses));
+        }
+    }, [addresses]);
+
+    // Fetch states on component mount
     useEffect(() => {
         const fetchStates = async () => {
             setIsLoadingStates(true);
             try {
                 const statesData = await getStates();
-                
-                // Sort states to make Delta appear first in the dropdown
-                const sortedStates = [...statesData].sort((a, b) => {
-                    if (a === 'Delta') return -1;
-                    if (b === 'Delta') return 1;
-                    return a.localeCompare(b);
-                });
-                
-                setStates(sortedStates);
+                setStates(statesData);
             } catch (error) {
                 console.error('Error fetching states:', error);
             } finally {
@@ -38,7 +57,7 @@ export default function ShippingAddress({
         };
 
         fetchStates();
-    }, []); // Empty dependency array so it only runs once on mount
+    }, []);
 
     // Fetch LGAs when state is selected
     useEffect(() => {
@@ -52,14 +71,6 @@ export default function ShippingAddress({
             try {
                 const lgasData = await getLGAs(formData.state);
                 setLGAs(lgasData);
-                
-                // Clear LGA selection when state changes
-                if (formData.lga && !lgasData.includes(formData.lga)) {
-                    const lgaResetEvent = {
-                        target: { name: 'lga', value: '' }
-                    };
-                    handleInputChange(lgaResetEvent);
-                }
             } catch (error) {
                 console.error(`Error fetching LGAs for ${formData.state}:`, error);
             } finally {
@@ -68,219 +79,446 @@ export default function ShippingAddress({
         };
 
         fetchLGAs();
+    }, [formData.state]);
 
-        // Only calculate and set shipping fee if payment method is not 'pay_on_pickup'
-        if (formData.state && paymentMethod !== 'pay_on_pickup') {
-            const newShippingFee = calculateShippingFee(formData.state);
-            setBaseShippingFee(newShippingFee);
-            setShippingFee(newShippingFee);
-        }
-    }, [formData.state, paymentMethod]); // Only depends on state and payment method changes
-
-    // Calculate shipping fee based on selected state
-    const calculateShippingFee = (state) => {
-        // Simple shipping fee structure based on business requirements
-        if (state === 'Delta') {
-            return 1000; // Business location - lowest shipping fee
-        } else if (state === 'Abuja') {
-            return 4000; // Higher shipping fee for Abuja
-        } else {
-            return 3500; // Standard shipping fee for all other states
-        }
+    const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData({
+            ...formData,
+            [name]: type === 'checkbox' ? checked : value
+        });
     };
 
-    // Handle LGA change
-    const handleLGAChange = (e) => {
-        handleInputChange(e);
+    const resetForm = () => {
+        setFormData({
+            addressName: '',
+            fullName: '',
+            phoneNumber: '',
+            address: '',
+            state: '',
+            lga: '',
+            city: '',
+            town: '',
+            zip: '',
+            additionalInfo: '',
+            isDefault: false
+        });
     };
 
-    // Handle state change
-    const handleStateChange = (e) => {
-        console.log("State selection changed to:", e.target.value);
-        
-        // Update the state first
-        handleInputChange(e);
-        
-        // Clear LGA
-        const lgaResetEvent = {
-            target: { name: 'lga', value: '' }
+    const handleAddAddress = () => {
+        const newAddress = {
+            id: Date.now().toString(),
+            ...formData
         };
-        handleInputChange(lgaResetEvent);
+
+        // If this is the first address or it's marked as default
+        if (addresses.length === 0 || formData.isDefault) {
+            // Set all other addresses to non-default
+            const updatedAddresses = addresses.map(addr => ({
+                ...addr,
+                isDefault: false
+            }));
+            setAddresses([...updatedAddresses, newAddress]);
+        } else {
+            setAddresses([...addresses, newAddress]);
+        }
+
+        setIsAddingNew(false);
+        resetForm();
+    };
+
+    const handleEditAddress = (id) => {
+        const addressToEdit = addresses.find(addr => addr.id === id);
+        if (addressToEdit) {
+            setFormData(addressToEdit);
+            setIsEditing(id);
+        }
+    };
+
+    const handleUpdateAddress = () => {
+        const updatedAddresses = addresses.map(addr => {
+            if (addr.id === isEditing) {
+                return { ...formData, id: addr.id };
+            }
+            // If current address is set as default, make sure others are not
+            if (formData.isDefault && addr.id !== isEditing) {
+                return { ...addr, isDefault: false };
+            }
+            return addr;
+        });
+
+        setAddresses(updatedAddresses);
+        setIsEditing(null);
+        resetForm();
+    };
+
+    const handleRemoveAddress = (id) => {
+        const filteredAddresses = addresses.filter(addr => addr.id !== id);
+
+        // If we removed the default address and others exist, make the first one default
+        if (addresses.find(addr => addr.id === id)?.isDefault && filteredAddresses.length > 0) {
+            filteredAddresses[0].isDefault = true;
+        }
+
+        setAddresses(filteredAddresses);
+    };
+
+    const handleSetDefault = (id) => {
+        const updatedAddresses = addresses.map(addr => ({
+            ...addr,
+            isDefault: addr.id === id
+        }));
+        setAddresses(updatedAddresses);
+    };
+
+    const cancelForm = () => {
+        if (isEditing) {
+            setIsEditing(null);
+        } else {
+            setIsAddingNew(false);
+        }
+        resetForm();
     };
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="border-b border-gray-200 pb-4 mb-6">
-                <h2 className="text-lg font-medium text-gray-900">Shipping Address</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                    Enter the address where you want your items delivered
-                </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                {/* Address Line */}
-                <div className="sm:col-span-6">
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                        Street Address <span className="text-red-500">*</span>
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            type="text"
-                            name="address"
-                            id="address"
-                            value={formData.address || ''}
-                            onChange={handleInputChange}
-                            required
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            placeholder="123 Main St"
-                        />
-                    </div>
+        <>
+            <Header />
+            <main className="container max-w-6xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+                <div className="flex items-center justify-between mb-8">
+                    <button
+                        onClick={() => router.back()}
+                        className="flex items-center text-primary-700 hover:text-primary-500 transition-colors font-medium"
+                    >
+                        <span className="mr-2 text-lg">←</span> Back
+                    </button>
+                    <h1 className="text-3xl font-bold text-gray-800 relative">
+                        Address Settings
+                        <span className="block h-1 w-12 bg-accent-500 mt-2 rounded-full"></span>
+                    </h1>
                 </div>
 
-                {/* State */}
-                <div className="sm:col-span-3">
-                    <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-                        State <span className="text-red-500">*</span>
-                    </label>
-                    <div className="mt-1">
-                        <select
-                            id="state"
-                            name="state"
-                            value={formData.state || ''}
-                            onChange={handleStateChange}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            required
-                            disabled={isLoadingStates}
-                        >
-                            <option value="">Select State</option>
-                            {states.map((state) => (
-                                <option key={state} value={state}>
-                                    {state}
-                                </option>
-                            ))}
-                        </select>
-                        {isLoadingStates && (
-                            <p className="text-xs text-gray-500 mt-1">Loading states...</p>
+
+                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-medium">Your Shipping Addresses</h2>
+                        {!isAddingNew && !isEditing && addresses.length < 5 && (
+                            <button
+                                onClick={() => setIsAddingNew(true)}
+                                className="flex items-center text-sm bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-700"
+                            >
+                                <Plus className="w-4 h-4 mr-1" /> New Address
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Form for adding or editing addresses */}
+                    {(isAddingNew || isEditing) && (
+                        <div className="mb-6 border rounded-lg p-4 bg-gray-50">
+                            <h3 className="text-lg font-medium mb-4">
+                                {isEditing ? 'Edit Address' : 'Add New Address'}
+                            </h3>
+
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label htmlFor="addressName" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Address Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="addressName"
+                                        name="addressName"
+                                        value={formData.addressName}
+                                        onChange={handleInputChange}
+                                        placeholder="Home, Work, etc."
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Full Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="fullName"
+                                        name="fullName"
+                                        value={formData.fullName}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Phone Number
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        id="phoneNumber"
+                                        name="phoneNumber"
+                                        value={formData.phoneNumber}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Street Address
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="address"
+                                        name="address"
+                                        value={formData.address}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                                        State
+                                    </label>
+                                    <select
+                                        id="state"
+                                        name="state"
+                                        value={formData.state || ''}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={isLoadingStates}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                        <option value="">Select a state</option>
+                                        {states.map((state) => (
+                                            <option key={state} value={state}>
+                                                {state}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {isLoadingStates && (
+                                        <p className="text-xs text-gray-500 mt-1">Loading states...</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="lga" className="block text-sm font-medium text-gray-700 mb-1">
+                                        LGA (Local Government Area)
+                                    </label>
+                                    <select
+                                        id="lga"
+                                        name="lga"
+                                        value={formData.lga || ''}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={!formData.state || isLoadingLGAs}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                        <option value="">Select LGA</option>
+                                        {lgas.map((lga) => (
+                                            <option key={lga} value={lga}>
+                                                {lga}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {isLoadingLGAs && (
+                                        <p className="text-xs text-gray-500 mt-1">Loading LGAs...</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                                        City
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="city"
+                                        name="city"
+                                        value={formData.city}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="town" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Town/Area
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="town"
+                                        name="town"
+                                        value={formData.town}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Postal/ZIP Code
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="zip"
+                                        name="zip"
+                                        value={formData.zip}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label htmlFor="additionalInfo" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Additional Information
+                                    </label>
+                                    <textarea
+                                        id="additionalInfo"
+                                        name="additionalInfo"
+                                        value={formData.additionalInfo}
+                                        onChange={handleInputChange}
+                                        rows="3"
+                                        className="w-full rounded border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                        placeholder="Landmark, delivery instructions, etc."
+                                    ></textarea>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="isDefault"
+                                            name="isDefault"
+                                            checked={formData.isDefault}
+                                            onChange={handleInputChange}
+                                            className="h-4 w-4 text-primary-500 focus:ring-primary-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="isDefault" className="ml-2 block text-sm text-gray-700">
+                                            Set as default shipping address
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-6">
+                                <button
+                                    onClick={isEditing ? handleUpdateAddress : handleAddAddress}
+                                    disabled={!formData.fullName || !formData.address || !formData.state || !formData.lga || !formData.city}
+                                    className="bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                    {isEditing ? 'Update Address' : 'Save Address'}
+                                </button>
+                                <button
+                                    onClick={cancelForm}
+                                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-100"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                        {addresses.length > 0 ? (
+                            addresses.map((address) => (
+                                <div key={address.id} className="border border-gray-200 rounded-lg p-4 relative">
+                                    {address.isDefault && (
+                                        <div className="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded absolute top-3 right-3">
+                                            Default
+                                        </div>
+                                    )}
+                                    <div className="flex items-start mb-3">
+                                        <Home className="w-5 h-5 text-gray-500 mr-2 mt-1" />
+                                        <div>
+                                            <h3 className="font-medium">{address.addressName || 'Address'}</h3>
+                                            <p className="text-sm text-gray-600">
+                                                {address.fullName}<br />
+                                                {address.address}<br />
+                                                {address.town && `${address.town}, `}{address.city}<br />
+                                                {address.lga}, {address.state}{address.zip && `, ${address.zip}`}<br />
+                                                Phone: {address.phoneNumber}
+                                            </p>
+                                            {address.additionalInfo && (
+                                                <p className="text-sm text-gray-500 mt-2">
+                                                    Note: {address.additionalInfo}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mt-4">
+                                        {!address.isDefault && (
+                                            <button
+                                                onClick={() => handleSetDefault(address.id)}
+                                                className="text-sm text-primary-600 border border-gray-300 px-3 py-1 rounded hover:bg-gray-50 flex items-center"
+                                            >
+                                                <Check className="w-3 h-3 mr-1" /> Set as Default
+                                            </button>
+                                        )}
+                                        {!isEditing && !isAddingNew && (
+                                            <>
+                                                <button
+                                                    onClick={() => handleEditAddress(address.id)}
+                                                    className="text-sm text-gray-600 border border-gray-300 px-3 py-1 rounded hover:bg-gray-50"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRemoveAddress(address.id)}
+                                                    className="text-sm text-red-600 border border-gray-300 px-3 py-1 rounded hover:bg-gray-50 flex items-center"
+                                                >
+                                                    <Trash2 className="w-3 h-3 mr-1" /> Remove
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        ) : !isAddingNew ? (
+                            <div className="md:col-span-2 border border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center text-center">
+                                <Map className="w-10 h-10 text-gray-400 mb-2" />
+                                <p className="text-gray-500 mb-3">You haven't added any shipping addresses yet</p>
+                                <button
+                                    onClick={() => setIsAddingNew(true)}
+                                    className="text-sm bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-700"
+                                >
+                                    Add Your First Address
+                                </button>
+                            </div>
+                        ) : null}
+
+                        {/* Empty Address Card (only show when adding is possible) */}
+                        {addresses.length > 0 && addresses.length < 5 && !isAddingNew && !isEditing && (
+                            <div className="border border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center text-center">
+                                <Map className="w-10 h-10 text-gray-400 mb-2" />
+                                <p className="text-gray-500 mb-3">Add a new shipping address</p>
+                                <button
+                                    onClick={() => setIsAddingNew(true)}
+                                    className="text-sm bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-700"
+                                >
+                                    Add Address
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* LGA (Local Government Area) */}
-                <div className="sm:col-span-3">
-                    <label htmlFor="lga" className="block text-sm font-medium text-gray-700">
-                        LGA (Local Government Area) <span className="text-red-500">*</span>
-                    </label>
-                    <div className="mt-1">
-                        <select
-                            id="lga"
-                            name="lga"
-                            value={formData.lga || ''}
-                            onChange={handleLGAChange}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            disabled={!formData.state || isLoadingLGAs}
-                            required
-                        >
-                            <option value="">Select LGA</option>
-                            {lgas.map((lga) => (
-                                <option key={lga} value={lga}>{lga}</option>
-                            ))}
-                        </select>
-                        {isLoadingLGAs && (
-                            <p className="text-xs text-gray-500 mt-1">Loading LGAs...</p>
-                        )}
-                    </div>
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <h3 className="text-sm font-medium mb-2">Need to know</h3>
+                    <p className="text-xs text-gray-600">
+                        You can add up to 5 shipping addresses to your account. The default address will be
+                        automatically selected during checkout, but you can change it during the ordering process.
+                        Your shipping addresses are stored locally on this device.
+                    </p>
                 </div>
-
-                {/* Town/Area - Manual Text Input */}
-                <div className="sm:col-span-3">
-                    <label htmlFor="town" className="block text-sm font-medium text-gray-700">
-                        Town/Area
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            type="text"
-                            id="town"
-                            name="town"
-                            value={formData.town || ''}
-                            onChange={handleInputChange}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            placeholder="Enter your town or area"
-                        />
-                    </div>
-                </div>
-
-                {/* ZIP/Postal Code */}
-                <div className="sm:col-span-3">
-                    <label htmlFor="zip" className="block text-sm font-medium text-gray-700">
-                        ZIP / Postal Code
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            type="text"
-                            name="zip"
-                            id="zip"
-                            value={formData.zip || ''}
-                            onChange={handleInputChange}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        />
-                    </div>
-                </div>
-
-                {/* Additional Information / Landmark */}
-                <div className="sm:col-span-6">
-                    <label htmlFor="additionalInfo" className="block text-sm font-medium text-gray-700">
-                        Additional Information / Landmark
-                    </label>
-                    <div className="mt-1">
-                        <textarea
-                            id="additionalInfo"
-                            name="additionalInfo"
-                            rows={3}
-                            value={formData.additionalInfo || ''}
-                            onChange={handleInputChange}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            placeholder="Landmarks, special delivery instructions, etc."
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Shipping Fee Information */}
-            {formData.state && (
-                <div className="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-100">
-                    <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                            <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <div className="ml-3">
-                            <h3 className="text-sm font-medium text-blue-800">Shipping Information</h3>
-                            {paymentMethod === 'pay_on_pickup' ? (
-                                <p className="mt-1 text-sm text-blue-700">
-                                    You've selected "Pay on Pickup". No shipping fee will be charged.
-                                </p>
-                            ) : (
-                                <p className="mt-1 text-sm text-blue-700">
-                                    Shipping to {formData.state}: ₦{calculateShippingFee(formData.state).toLocaleString()}
-                                </p>
-                            )}
-                            {paymentMethod !== 'pay_on_pickup' && (
-                                <p className="mt-1 text-xs text-blue-600">
-                                    {formData.state === 'Delta' ? 
-                                        'Delivery in Delta State takes less than 24 hours.' : 
-                                        'Delivery usually takes 2-5 business days depending on your location.'}
-                                </p>
-                            )}
-                            {paymentMethod === 'pay_on_pickup' && (
-                                <p className="mt-1 text-xs text-blue-600">
-                                    Our staff will contact you when your order is ready for pickup.
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            </main>
+            <Footer />
+        </>
     );
-}
+};
+
+export default ShippingAddressesPage;
