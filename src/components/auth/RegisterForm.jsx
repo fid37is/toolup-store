@@ -248,7 +248,7 @@ export default function RegisterForm({ isLoading, setIsLoading }) {
             <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-md hover:shadow-lg active:shadow-inner active:bg-primary-800 transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-700'}`}
+                className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-md hover:shadow-lg active:shadow-inner bg-primary-700 transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-500'}`}
             >
                 {isLoading ? (
                     <span className="flex items-center justify-center">
