@@ -134,7 +134,7 @@ export default function LoginForm({ isLoading, setIsLoading }) {
                     value={loginForm.email}
                     onChange={handleInputChange}
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 transition-all"
+                    className="block w-full rounded p-1 border-gray-300 shadow-sm focus:border-accent-500 focus:ring focus:ring-accent-500 focus:ring-opacity-50 transition-all"
                     placeholder="your@email.com"
                 />
             </div>
@@ -151,7 +151,7 @@ export default function LoginForm({ isLoading, setIsLoading }) {
                         value={loginForm.password}
                         onChange={handleInputChange}
                         required
-                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-500 focus:ring-opacity-50 pr-10 transition-all"
+                        className="block w-full rounded p-1 border-gray-300 shadow-sm focus:border-accent-500 focus:ring focus:ring-accent-500 focus:ring-opacity-50 pr-10 transition-all"
                         placeholder="••••••••"
                     />
                     <button
@@ -196,7 +196,7 @@ export default function LoginForm({ isLoading, setIsLoading }) {
             <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full rounded-lg bg-primary-600 py-3 px-4 text-white font-medium shadow-md hover:shadow-lg active:shadow-inner bg-primary-700 transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-500'}`}
+                className={`w-full rounded py-2 px-4 text-white font-medium shadow-md hover:shadow-lg active:shadow-inner bg-primary-700 transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-500'}`}
             >
                 {isLoading ? (
                     <span className="flex items-center justify-center">
