@@ -1,5 +1,5 @@
-import { ImageResponse } from 'next/og';
-import Image from 'next/image';
+/* eslint-disable @next/next/no-img-element */
+import { ImageResponse } from '@vercel/og';
 
 export const runtime = 'edge';
 
@@ -66,7 +66,7 @@ export default async function handler(req) {
                                     justifyContent: 'center',
                                     paddingRight: '20px',
                                 }}>
-                                    <Image
+                                    <img
                                         src={image}
                                         alt={title}
                                         style={{
@@ -153,24 +153,6 @@ export default async function handler(req) {
             {
                 width: 1200,
                 height: 630,
-                fonts: [
-                    {
-                        name: 'Inter',
-                        data: await fetch(
-                            new URL('./fonts/Inter-Regular.woff', import.meta.url)
-                        ).then((res) => res.arrayBuffer()).catch(() => null),
-                        weight: 400,
-                        style: 'normal',
-                    },
-                    {
-                        name: 'Inter',
-                        data: await fetch(
-                            new URL('./fonts/Inter-Bold.woff', import.meta.url)
-                        ).then((res) => res.arrayBuffer()).catch(() => null),
-                        weight: 700,
-                        style: 'normal',
-                    },
-                ].filter(font => font.data !== null),
             }
         );
     } catch (error) {
