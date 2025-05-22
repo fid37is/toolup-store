@@ -8,8 +8,6 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { useRouter } from 'next/router';
 
-
-
 const WishlistPage = () => {
     const [wishlistItems, setWishlistItems] = useState([]);
     const router = useRouter();
@@ -103,7 +101,44 @@ const WishlistPage = () => {
         <>
             <Header />
             <main className="container max-w-6xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
-                <div className="grid grid-cols-3 items-center mb-6">
+                {/* Mobile Layout - Stack vertically */}
+                <div className="block md:hidden mb-6">
+                    {/* Back button */}
+                    <div className="mb-4">
+                        <button
+                            onClick={() => router.back()}
+                            className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md border border-gray-200"
+                        >
+                            <span className="mr-2 text-lg">←</span> Back
+                        </button>
+                    </div>
+
+                    {/* Title */}
+                    <div className="text-center mb-4">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                            My Wishlist
+                        </h1>
+                        <div className="flex items-center justify-center">
+                            <div className="h-1 w-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    {/* Clear All button */}
+                    {wishlistItems.length > 0 && (
+                        <div className="text-center">
+                            <button
+                                onClick={clearWishlist}
+                                className="text-red-600 hover:text-red-800 flex items-center justify-center bg-white px-4 py-2 rounded-lg shadow-sm border border-red-200 hover:border-red-300 transition-all duration-200"
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Clear All
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Desktop Layout - Grid */}
+                <div className="hidden md:grid grid-cols-3 items-center mb-6">
                     {/* Left column - Back button */}
                     <div className="justify-self-start">
                         <button
@@ -124,14 +159,14 @@ const WishlistPage = () => {
                         </div>
                     </div>
 
-                    {/* Right column - Clear All button (or empty space) */}
+                    {/* Right column - Clear All button */}
                     <div className="justify-self-end">
                         {wishlistItems.length > 0 && (
                             <button
                                 onClick={clearWishlist}
-                                className="text-red-600 hover:text-red-800 flex items-center"
+                                className="text-red-600 hover:text-red-800 flex items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-red-200 hover:border-red-300 transition-all duration-200"
                             >
-                                <Trash2 className="h-4 w-4 mr-1" />
+                                <Trash2 className="h-4 w-4 mr-2" />
                                 Clear All
                             </button>
                         )}
@@ -156,37 +191,37 @@ const WishlistPage = () => {
                                 <li key={item.productId} className="p-4">
                                     {/* Product details row - in columns on both mobile and desktop */}
                                     <div className="flex flex-row items-start mb-4">
-                                        <div className="flex-shrink-0 w-24 h-24 mr-4">
+                                        <div className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 mr-3 sm:mr-4">
                                             <Image
                                                 src={item.imageUrl || '/placeholder-product.jpg'}
                                                 alt={item.name}
                                                 width={96}
                                                 height={96}
-                                                className="object-cover w-full h-full"
+                                                className="object-cover w-full h-full rounded"
                                                 unoptimized={true}
                                             />
                                         </div>
 
                                         <div className="flex-grow text-left">
-                                            <h3 className="text-lg font-medium text-gray-800">{item.name}</h3>
+                                            <h3 className="text-base sm:text-lg font-medium text-gray-800 line-clamp-2">{item.name}</h3>
 
                                             <div className="flex items-center mt-1">
-                                                <span className="font-medium text-gray-800">{formatNairaPrice(item.price)}</span>
+                                                <span className="font-medium text-gray-800 text-sm sm:text-base">{formatNairaPrice(item.price)}</span>
                                             </div>
 
                                             <div className="mt-2">
-                                                <span className="text-sm text-gray-600">
+                                                <span className="text-xs sm:text-sm text-gray-600">
                                                     Added on {new Date(item.addedAt).toLocaleDateString()}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Buttons row - horizontal on both mobile and desktop */}
-                                    <div className="flex flex-row justify-end space-x-2">
+                                    {/* Buttons row - responsive layout */}
+                                    <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
                                         <button
                                             onClick={() => removeFromWishlist(item.productId)}
-                                            className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+                                            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 flex items-center justify-center text-sm"
                                             aria-label="Remove from wishlist"
                                         >
                                             <Trash2 className="h-4 w-4 mr-2" />
@@ -195,7 +230,7 @@ const WishlistPage = () => {
 
                                         <button
                                             onClick={() => addToCart(item)}
-                                            className="px-4 py-2 rounded flex items-center justify-center bg-primary-500 text-white hover:bg-primary-700"
+                                            className="w-full sm:w-auto px-4 py-2 rounded flex items-center justify-center bg-primary-500 text-white hover:bg-primary-700 text-sm"
                                         >
                                             <ShoppingCart className="h-4 w-4 mr-2" />
                                             Add to Cart

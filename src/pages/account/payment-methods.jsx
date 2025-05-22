@@ -1,4 +1,3 @@
-
 import { CreditCard, Plus, ChevronLeft } from 'lucide-react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
@@ -10,14 +9,42 @@ const PaymentMethodsPage = () => {
         <>
             <Header />
             <main className="container max-w-6xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
-                <div className="flex items-center justify-between mb-6">
-                    <button
-                        onClick={() => router.back()}
-                        className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md border border-gray-200"
-                    >
-                        <span className="mr-2 text-lg">←</span> Back
-                    </button>
+                {/* Mobile Layout - Stack vertically */}
+                <div className="block md:hidden mb-6">
+                    {/* Back button */}
+                    <div className="mb-4">
+                        <button
+                            onClick={() => router.back()}
+                            className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md border border-gray-200"
+                        >
+                            <span className="mr-2 text-lg">←</span> Back
+                        </button>
+                    </div>
 
+                    {/* Title */}
+                    <div className="text-center mb-4">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                            Payment Methods
+                        </h1>
+                        <div className="flex items-center justify-center">
+                            <div className="h-1 w-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Desktop Layout - Grid */}
+                <div className="hidden md:grid grid-cols-3 items-center mb-6">
+                    {/* Left column - Back button */}
+                    <div className="justify-self-start">
+                        <button
+                            onClick={() => router.back()}
+                            className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md border border-gray-200"
+                        >
+                            <span className="mr-2 text-lg">←</span> Back
+                        </button>
+                    </div>
+
+                    {/* Center column - Title */}
                     <div className="text-center">
                         <h1 className="text-4xl font-bold text-gray-800 mb-2">
                             Payment Methods
@@ -27,10 +54,11 @@ const PaymentMethodsPage = () => {
                         </div>
                     </div>
 
-                    <div className="w-20"></div> {/* Spacer for centering */}
+                    {/* Right column - Spacer */}
+                    <div className="justify-self-end">
+                        {/* Empty for balance */}
+                    </div>
                 </div>
-
-
 
                 <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
