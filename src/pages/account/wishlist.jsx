@@ -6,9 +6,13 @@ import { Heart, Trash2, ShoppingCart } from 'lucide-react';
 import { notifyEvent } from '../../components/Notification';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
+import { useRouter } from 'next/router';
+
+
 
 const WishlistPage = () => {
     const [wishlistItems, setWishlistItems] = useState([]);
+    const router = useRouter();
 
     // Format price in Nigerian Naira
     const formatNairaPrice = (price) => {
@@ -99,28 +103,39 @@ const WishlistPage = () => {
         <>
             <Header />
             <main className="container max-w-6xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
-                <div className="flex items-center justify-between mb-8">
-                    <button
-                        onClick={() => router.back()}
-                        className="flex items-center text-primary-700 hover:text-primary-500 transition-colors font-medium"
-                    >
-                        <span className="mr-2 text-lg">←</span> Back
-                    </button>
-                    <h1 className="text-3xl font-bold text-gray-800 relative">
-                        My Wishlist
-                        <span className="block h-1 w-12 bg-accent-500 mt-2 rounded-full"></span>
-                    </h1>
-
-
-                    {wishlistItems.length > 0 && (
+                <div className="grid grid-cols-3 items-center mb-6">
+                    {/* Left column - Back button */}
+                    <div className="justify-self-start">
                         <button
-                            onClick={clearWishlist}
-                            className="text-red-600 hover:text-red-800 flex items-center"
+                            onClick={() => router.back()}
+                            className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md border border-gray-200"
                         >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Clear All
+                            <span className="mr-2 text-lg">←</span> Back
                         </button>
-                    )}
+                    </div>
+
+                    {/* Center column - Title */}
+                    <div className="text-center">
+                        <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                            My Wishlist
+                        </h1>
+                        <div className="flex items-center justify-center">
+                            <div className="h-1 w-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    {/* Right column - Clear All button (or empty space) */}
+                    <div className="justify-self-end">
+                        {wishlistItems.length > 0 && (
+                            <button
+                                onClick={clearWishlist}
+                                className="text-red-600 hover:text-red-800 flex items-center"
+                            >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Clear All
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {wishlistItems.length === 0 ? (

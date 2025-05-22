@@ -1,15 +1,14 @@
-// src/pages/product/[id].jsx - Updated with Social Sharing and Performance Optimizations
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/router';
-import Head from 'next/head';
 import Image from 'next/image';
 import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import LoadingScreen from '../../components/LoadingScreen';
+import SocialHead from '../../components/SocialHead';
 import { formatNairaPrice } from '../../utils/currency-formatter';
+import { generateProductSocialData } from '../../utils/socialUtils';
 import { toast } from 'sonner';
-import '../../styles/globals.css';
 import { Share } from 'lucide-react';
 
 // Lazy load non-critical components
@@ -28,7 +27,7 @@ export default function ProductDetail() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [shareUrl, setShareUrl] = useState('');
+    const [socialData, setSocialData] = useState(null);
 
     const quantityNum = Number(product?.quantity || 0);
     const isOutOfStock = quantityNum === 0;
@@ -40,28 +39,23 @@ export default function ProductDetail() {
             const authStatus = localStorage.getItem('isAuthenticated') === 'true';
             setIsAuthenticated(authStatus);
         };
-
         checkAuth();
     }, []);
 
-    // Generate share URL when product is loaded
+    // Generate social data when product is loaded
     useEffect(() => {
-        if (product && typeof window !== 'undefined') {
-            const currentUrl = window.location.origin + router.asPath;
-            setShareUrl(currentUrl);
+        if (product && router.asPath) {
+            const data = generateProductSocialData(product, router);
+            setSocialData(data);
         }
     }, [product, router.asPath]);
 
     useEffect(() => {
-        // Only fetch when we have an ID
-        if (!id) {
-            return;
-        }
+        if (!id) return;
 
         const fetchProduct = async () => {
             try {
                 setIsLoading(true);
-                // Use AbortController for fetch requests to cancel pending requests
                 const controller = new AbortController();
                 const signal = controller.signal;
 
@@ -73,12 +67,9 @@ export default function ProductDetail() {
 
                 const data = await response.json();
                 setProduct(data);
-
-                // Generate AI-like description based on product data
                 generateProductDescription(data);
 
                 return () => {
-                    // Cancel fetch request if component unmounts
                     controller.abort();
                 };
             } catch (err) {
@@ -98,10 +89,8 @@ export default function ProductDetail() {
     const generateProductDescription = (productData) => {
         if (!productData) return;
 
-        // Get product details
         const { name, category, price } = productData;
 
-        // Array of possible description templates
         const descriptionTemplates = [
             `The ${name} is a premium quality ${category || 'tool'} designed for both professionals and enthusiasts. Featuring exceptional durability and performance, this ${price > 100 ? 'high-end' : 'affordable'} product will exceed your expectations while maintaining excellent value for money.`,
 
@@ -110,7 +99,6 @@ export default function ProductDetail() {
             `Meet the ${name} - the perfect addition to any ${category || 'toolbox'}. With its ergonomic design and precision engineering, this ${price > 100 ? 'professional-grade' : 'cost-effective'} solution offers unmatched performance and durability that will serve you for years to come.`,
         ];
 
-        // Select a random description template (limit to 3 for better performance)
         const randomIndex = Math.floor(Math.random() * descriptionTemplates.length);
         setGeneratedDescription(descriptionTemplates[randomIndex]);
     };
@@ -123,7 +111,6 @@ export default function ProductDetail() {
     };
 
     const handleAddToCart = async () => {
-        // Only allow adding to cart if user is authenticated
         if (!isAuthenticated) {
             toast.error('Please login to add items to your cart');
             return;
@@ -135,7 +122,6 @@ export default function ProductDetail() {
         }
 
         try {
-            // First, fetch the current cart items
             let cartItems = [];
             try {
                 const storedCart = localStorage.getItem('cart');
@@ -146,14 +132,11 @@ export default function ProductDetail() {
                 console.error('Error parsing stored cart:', err);
             }
 
-            // Check if product already exists in cart
             const existingItemIndex = cartItems.findIndex(item => item.productId === id);
 
             if (existingItemIndex >= 0) {
-                // Update quantity if item already exists
                 cartItems[existingItemIndex].quantity += quantity;
             } else {
-                // Add new item
                 cartItems.push({
                     productId: id,
                     name: product.name,
@@ -163,10 +146,8 @@ export default function ProductDetail() {
                 });
             }
 
-            // Save to localStorage
             localStorage.setItem('cart', JSON.stringify(cartItems));
 
-            // Make API call (in a real app, this would save to database)
             try {
                 const response = await fetch('/api/cart', {
                     method: 'POST',
@@ -183,8 +164,6 @@ export default function ProductDetail() {
             }
 
             toast.success(`${product.name} added to cart`);
-
-            // Notify other components that cart has been updated
             window.dispatchEvent(new CustomEvent('cartUpdated'));
         } catch (error) {
             console.error('Error adding to cart:', error);
@@ -192,26 +171,21 @@ export default function ProductDetail() {
         }
     };
 
-    // Updated handleBuyNow to show auth modal for non-authenticated users
     const handleBuyNow = () => {
         if (!product || !id) {
             console.error("Product or product ID is missing");
             return;
         }
 
-        // If user is authenticated, proceed directly to checkout
         if (isAuthenticated) {
             directCheckout();
         } else {
-            // If not authenticated, show auth modal
             setIsAuthModalOpen(true);
         }
     };
 
-    // Handle direct checkout (after auth is resolved)
     const directCheckout = () => {
         try {
-            // Create a checkout item for this single product
             const checkoutItem = {
                 productId: id,
                 name: product.name,
@@ -220,10 +194,7 @@ export default function ProductDetail() {
                 quantity: quantity
             };
 
-            // Store this as the direct purchase item
             localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
-
-            // Redirect to the checkout page with direct mode
             router.push('/checkout?mode=direct');
         } catch (error) {
             console.error('Error processing direct purchase:', error);
@@ -231,20 +202,15 @@ export default function ProductDetail() {
         }
     };
 
-    // Auth modal handlers
     const handleGuestCheckout = () => {
-        // Set guest checkout flag
         localStorage.setItem('guestCheckout', 'true');
         setIsAuthModalOpen(false);
-
-        // Proceed with checkout as guest
         directCheckout();
     };
 
     const handleLoginRegister = () => {
         setIsAuthModalOpen(false);
 
-        // Create a checkout item for this single product
         const checkoutItem = {
             productId: id,
             name: product.name,
@@ -253,14 +219,10 @@ export default function ProductDetail() {
             quantity: quantity
         };
 
-        // Store this as the direct purchase item before redirecting
         localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
-
-        // Redirect to auth page with return URL to checkout
         router.push(`/auth?redirect=${encodeURIComponent('/checkout?mode=direct')}`);
     };
 
-    // Share modal handlers
     const handleShare = () => {
         setIsShareModalOpen(true);
     };
@@ -273,7 +235,6 @@ export default function ProductDetail() {
         setIsAuthModalOpen(false);
     };
 
-    // Helper function for copy to clipboard
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text)
             .then(() => {
@@ -286,13 +247,18 @@ export default function ProductDetail() {
     };
 
     if (isLoading) {
-        // Use the custom LoadingScreen component
         return <LoadingScreen message="Loading product details..." />;
     }
 
     if (error || !product) {
         return (
             <div className="flex min-h-screen flex-col">
+                <SocialHead
+                    title="Product Not Found | ToolUp Store"
+                    description="Sorry, we couldn't find the product you're looking for."
+                    imageUrl="/og-image-store.jpg"
+                    url={`/product/${id}`}
+                />
                 <Header />
                 <div className="container mx-auto my-16 px-4 flex-grow">
                     <div className="rounded-lg bg-red-50 p-6 text-center">
@@ -316,29 +282,18 @@ export default function ProductDetail() {
 
     return (
         <div className="flex min-h-screen flex-col">
-            <Head>
-                <title>{product.name} | ToolUp Store</title>
-                <meta name="description" content={generatedDescription || `Buy ${product.name} at ToolUp Store`} />
-
-                {/* Open Graph meta tags for better social sharing */}
-                <meta property="og:title" content={`${product.name} | ToolUp Store`} />
-                <meta property="og:description" content={generatedDescription || `Buy ${product.name} at ToolUp Store`} />
-                <meta property="og:image" content={product.imageUrl} />
-                <meta property="og:url" content={shareUrl} />
-                <meta property="og:type" content="product" />
-
-                {/* Twitter Card meta tags */}
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content={`${product.name} | ToolUp Store`} />
-                <meta name="twitter:description" content={generatedDescription || `Buy ${product.name} at ToolUp Store`} />
-                <meta name="twitter:image" content={product.imageUrl} />
-
-                {/* Preconnect to critical domains */}
-                <link rel="preconnect" href="/api" />
-
-                {/* Preload critical resources */}
-                <link rel="preload" href={product.imageUrl} as="image" />
-            </Head>
+            {/* Enhanced Social Head with all meta tags */}
+            {socialData && (
+                <SocialHead
+                    title={socialData.title}
+                    description={generatedDescription || socialData.description}
+                    imageUrl={socialData.imageUrl}
+                    url={socialData.url}
+                    type={socialData.type}
+                    price={socialData.price}
+                    availability={socialData.availability}
+                />
+            )}
 
             <Header />
 
@@ -354,7 +309,6 @@ export default function ProductDetail() {
                         Back to Products
                     </Link>
 
-                    {/* Share Button */}
                     <button
                         onClick={handleShare}
                         className="inline-flex items-center text-primary-500 hover:underline"
@@ -376,7 +330,6 @@ export default function ProductDetail() {
                             sizes="(max-width: 768px) 100vw, 50vw"
                             priority
                             loading="eager"
-                            // Set quality to optimize image loading
                             quality={80}
                         />
                     </div>
@@ -473,7 +426,7 @@ export default function ProductDetail() {
                 </div>
             </main>
 
-            {/* Modals - Lazy loaded with Suspense */}
+            {/* Modals */}
             <Suspense fallback={<div>Loading...</div>}>
                 {isAuthModalOpen && (
                     <AuthFlowModal
@@ -484,14 +437,14 @@ export default function ProductDetail() {
                     />
                 )}
 
-                {isShareModalOpen && (
+                {isShareModalOpen && socialData && (
                     <ShareModal
                         isOpen={isShareModalOpen}
                         onClose={closeShareModal}
                         productName={product.name}
-                        shareUrl={shareUrl}
+                        shareUrl={socialData.url}
                         imageUrl={product.imageUrl}
-                        onCopyLink={() => copyToClipboard(shareUrl)}
+                        onCopyLink={() => copyToClipboard(socialData.url)}
                     />
                 )}
             </Suspense>
