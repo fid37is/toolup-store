@@ -1,8 +1,12 @@
-import { doc, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+// addressService.js - Fixed Firestore User Collection Only
+import { doc, getDoc, updateDoc, getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
+// Initialize Firestore - this is required for the new Firebase v9+ SDK
+const db = getFirestore();
+
 /**
- * Get all addresses for the current user
+ * Get all addresses for the current user from their user document
  * @returns {Promise<Array>} Array of address objects
  */
 export const getUserAddresses = async () => {
@@ -11,25 +15,24 @@ export const getUserAddresses = async () => {
         const user = auth.currentUser;
 
         if (!user) {
-            throw new Error('User not authenticated');
+            console.log('User not authenticated, falling back to localStorage');
+            return getLocalAddresses();
         }
 
-        const addressesRef = collection(db, 'addresses');
-        const q = query(addressesRef, where('userId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
+        const userRef = doc(db, 'users', user.uid); // FIXED: Added db parameter
+        const userDoc = await getDoc(userRef);
 
-        const addresses = [];
-        querySnapshot.forEach((doc) => {
-            addresses.push({
-                id: doc.id,
-                ...doc.data()
-            });
-        });
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const addresses = userData.addresses || [];
+            
+            // Sort addresses to put default address first
+            addresses.sort((a, b) => (b.isDefault === true) - (a.isDefault === true));
+            
+            return addresses;
+        }
 
-        // Sort addresses to put default address first
-        addresses.sort((a, b) => (b.isDefault === true) - (a.isDefault === true));
-
-        return addresses;
+        return [];
     } catch (error) {
         console.error('Error getting user addresses:', error);
         // Fall back to localStorage if Firestore fails
@@ -38,7 +41,7 @@ export const getUserAddresses = async () => {
 };
 
 /**
- * Add a new address for the current user
+ * Add a new address to the user's document
  * @param {Object} addressData - The address data to save
  * @returns {Promise<Object>} The saved address with ID
  */
@@ -48,30 +51,38 @@ export const addUserAddress = async (addressData) => {
         const user = auth.currentUser;
 
         if (!user) {
-            throw new Error('User not authenticated');
+            console.log('User not authenticated, saving to localStorage');
+            return addLocalAddress(addressData);
         }
 
-        // If this is set as default or it's the first address, handle default logic
-        if (addressData.isDefault) {
-            await clearDefaultAddresses(user.uid);
+        const userRef = doc(db, 'users', user.uid); // FIXED: Added db parameter
+        const userDoc = await getDoc(userRef);
+
+        let addresses = [];
+        if (userDoc.exists()) {
+            addresses = userDoc.data().addresses || [];
         }
 
-        // Add userId to the address data
-        const fullAddressData = {
+        // If this is set as default or it's the first address, clear other defaults
+        if (addressData.isDefault || addresses.length === 0) {
+            addresses.forEach(addr => addr.isDefault = false);
+            addressData.isDefault = true;
+        }
+
+        // Create new address with ID
+        const newAddress = {
+            id: Date.now().toString(),
             ...addressData,
-            userId: user.uid,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
 
-        const addressesRef = collection(db, 'addresses');
-        const docRef = await addDoc(addressesRef, fullAddressData);
+        addresses.push(newAddress);
 
-        // Return the complete address with ID
-        return {
-            id: docRef.id,
-            ...fullAddressData
-        };
+        // Update user document
+        await updateDoc(userRef, { addresses });
+
+        return newAddress;
     } catch (error) {
         console.error('Error adding address:', error);
         // Fall back to local storage
@@ -80,7 +91,7 @@ export const addUserAddress = async (addressData) => {
 };
 
 /**
- * Update an existing address
+ * Update an existing address in the user's document
  * @param {string} addressId - The ID of the address to update
  * @param {Object} addressData - The new address data
  * @returns {Promise<Object>} The updated address
@@ -91,30 +102,45 @@ export const updateUserAddress = async (addressId, addressData) => {
         const user = auth.currentUser;
 
         if (!user) {
-            throw new Error('User not authenticated');
+            console.log('User not authenticated, updating in localStorage');
+            return updateLocalAddress(addressId, addressData);
         }
+
+        const userRef = doc(db, 'users', user.uid); // FIXED: Added db parameter
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+            throw new Error('User document not found');
+        }
+
+        let addresses = userDoc.data().addresses || [];
 
         // If this address is being set as default, clear other defaults
         if (addressData.isDefault) {
-            await clearDefaultAddresses(user.uid);
+            addresses.forEach(addr => {
+                if (addr.id !== addressId) {
+                    addr.isDefault = false;
+                }
+            });
         }
 
-        const addressRef = doc(db, 'addresses', addressId);
+        // Find and update the address
+        addresses = addresses.map(addr => {
+            if (addr.id === addressId) {
+                return {
+                    ...addr,
+                    ...addressData,
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return addr;
+        });
 
-        // Update the document with new data
-        const updateData = {
-            ...addressData,
-            updatedAt: new Date().toISOString()
-        };
-
-        await updateDoc(addressRef, updateData);
+        // Update user document
+        await updateDoc(userRef, { addresses });
 
         // Return the updated address
-        return {
-            id: addressId,
-            ...updateData,
-            userId: user.uid
-        };
+        return addresses.find(addr => addr.id === addressId);
     } catch (error) {
         console.error('Error updating address:', error);
         // Fall back to local storage
@@ -123,7 +149,7 @@ export const updateUserAddress = async (addressId, addressData) => {
 };
 
 /**
- * Delete an address
+ * Delete an address from the user's document
  * @param {string} addressId - The ID of the address to delete
  * @returns {Promise<boolean>} Success status
  */
@@ -133,30 +159,38 @@ export const deleteUserAddress = async (addressId) => {
         const user = auth.currentUser;
 
         if (!user) {
-            throw new Error('User not authenticated');
+            console.log('User not authenticated, deleting from localStorage');
+            return deleteLocalAddress(addressId);
         }
 
-        // First check if this is the default address
-        const addressRef = doc(db, 'addresses', addressId);
-        const addressDoc = await getDoc(addressRef);
+        const userRef = doc(db, 'users', user.uid); // FIXED: Added db parameter
+        const userDoc = await getDoc(userRef);
 
-        if (!addressDoc.exists()) {
+        if (!userDoc.exists()) {
+            throw new Error('User document not found');
+        }
+
+        let addresses = userDoc.data().addresses || [];
+
+        // Find the address to delete
+        const addressToDelete = addresses.find(addr => addr.id === addressId);
+        if (!addressToDelete) {
             throw new Error('Address not found');
         }
 
-        const addressData = addressDoc.data();
-        const wasDefault = addressData.isDefault;
+        const wasDefault = addressToDelete.isDefault;
 
-        // Delete the address
-        await deleteDoc(addressRef);
+        // Remove the address
+        addresses = addresses.filter(addr => addr.id !== addressId);
 
-        // If this was the default address, set a new default
-        if (wasDefault) {
-            const addresses = await getUserAddresses();
-            if (addresses.length > 0) {
-                await updateUserAddress(addresses[0].id, { isDefault: true });
-            }
+        // If this was the default address and we have others, set a new default
+        if (wasDefault && addresses.length > 0) {
+            addresses[0].isDefault = true;
+            addresses[0].updatedAt = new Date().toISOString();
         }
+
+        // Update user document
+        await updateDoc(userRef, { addresses });
 
         return true;
     } catch (error) {
@@ -167,7 +201,7 @@ export const deleteUserAddress = async (addressId) => {
 };
 
 /**
- * Set an address as the default
+ * Set an address as the default in the user's document
  * @param {string} addressId - The ID of the address to set as default
  * @returns {Promise<boolean>} Success status
  */
@@ -177,18 +211,28 @@ export const setDefaultAddress = async (addressId) => {
         const user = auth.currentUser;
 
         if (!user) {
-            throw new Error('User not authenticated');
+            console.log('User not authenticated, setting default in localStorage');
+            return setLocalDefaultAddress(addressId);
         }
 
-        // Clear existing default addresses
-        await clearDefaultAddresses(user.uid);
+        const userRef = doc(db, 'users', user.uid); // FIXED: Added db parameter
+        const userDoc = await getDoc(userRef);
 
-        // Set the new default
-        const addressRef = doc(db, 'addresses', addressId);
-        await updateDoc(addressRef, {
-            isDefault: true,
-            updatedAt: new Date().toISOString()
-        });
+        if (!userDoc.exists()) {
+            throw new Error('User document not found');
+        }
+
+        let addresses = userDoc.data().addresses || [];
+
+        // Update default status
+        addresses = addresses.map(addr => ({
+            ...addr,
+            isDefault: addr.id === addressId,
+            updatedAt: addr.id === addressId ? new Date().toISOString() : addr.updatedAt
+        }));
+
+        // Update user document
+        await updateDoc(userRef, { addresses });
 
         return true;
     } catch (error) {
@@ -208,30 +252,25 @@ export const getDefaultAddress = async () => {
         const user = auth.currentUser;
 
         if (!user) {
-            throw new Error('User not authenticated');
+            console.log('User not authenticated, getting default from localStorage');
+            return getLocalDefaultAddress();
         }
 
-        const addressesRef = collection(db, 'addresses');
-        const q = query(
-            addressesRef,
-            where('userId', '==', user.uid),
-            where('isDefault', '==', true)
-        );
+        const userRef = doc(db, 'users', user.uid); // FIXED: Added db parameter
+        const userDoc = await getDoc(userRef);
 
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            const doc = querySnapshot.docs[0];
-            return {
-                id: doc.id,
-                ...doc.data()
-            };
-        }
-
-        // If no default found, try to get any address
-        const allAddresses = await getUserAddresses();
-        if (allAddresses.length > 0) {
-            return allAddresses[0];
+        if (userDoc.exists()) {
+            const addresses = userDoc.data().addresses || [];
+            
+            // First try to find address marked as default
+            let defaultAddress = addresses.find(addr => addr.isDefault === true);
+            
+            // If no default found but we have addresses, return the first one
+            if (!defaultAddress && addresses.length > 0) {
+                defaultAddress = addresses[0];
+            }
+            
+            return defaultAddress || null;
         }
 
         return null;
@@ -242,37 +281,47 @@ export const getDefaultAddress = async () => {
     }
 };
 
-// Helper function to clear default flag from all addresses
-async function clearDefaultAddresses(userId) {
-    const addressesRef = collection(db, 'addresses');
-    const q = query(
-        addressesRef,
-        where('userId', '==', userId),
-        where('isDefault', '==', true)
-    );
+/**
+ * Get user's default address formatted for checkout
+ * This is the main function for pre-filling checkout forms
+ * @returns {Promise<Object|null>} Address data formatted for checkout
+ */
+export const getCheckoutAddress = async () => {
+    try {
+        const defaultAddress = await getDefaultAddress();
+        
+        if (defaultAddress) {
+            return {
+                address: defaultAddress.address || '',
+                state: defaultAddress.state || '',
+                lga: defaultAddress.lga || '',
+                city: defaultAddress.city || '',
+                town: defaultAddress.town || '',
+                zip: defaultAddress.zip || '',
+                additionalInfo: defaultAddress.additionalInfo || ''
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error('Error getting checkout address:', error);
+        return null;
+    }
+};
 
-    const querySnapshot = await getDocs(q);
-
-    const updatePromises = [];
-    querySnapshot.forEach((document) => {
-        updatePromises.push(
-            updateDoc(doc(db, 'addresses', document.id), {
-                isDefault: false,
-                updatedAt: new Date().toISOString()
-            })
-        );
-    });
-
-    await Promise.all(updatePromises);
-}
-
-// Local storage fallback functions
-// These are used when the user is offline or Firestore operations fail
+// ============================================================================
+// LOCAL STORAGE FALLBACK FUNCTIONS
+// These are used when the user is offline or not authenticated
+// ============================================================================
 
 function getLocalAddresses() {
     try {
         const savedAddresses = localStorage.getItem('shippingAddresses');
-        return savedAddresses ? JSON.parse(savedAddresses) : [];
+        const addresses = savedAddresses ? JSON.parse(savedAddresses) : [];
+        
+        // Sort addresses to put default address first
+        addresses.sort((a, b) => (b.isDefault === true) - (a.isDefault === true));
+        
+        return addresses;
     } catch (e) {
         console.error('Error accessing localStorage:', e);
         return [];
