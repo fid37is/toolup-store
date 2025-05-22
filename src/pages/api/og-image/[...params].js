@@ -1,18 +1,26 @@
-import { ImageResponse } from '@vercel/og';
+import { ImageResponse } from 'next/og';
 import Image from 'next/image';
 
-export const config = {
-    runtime: 'edge',
-};
+export const runtime = 'edge';
 
-export default async function handler(request) {
+export default async function handler(req) {
     try {
-        const { searchParams } = new URL(request.url);
+        const { searchParams } = new URL(req.url);
         
-        const title = searchParams.get('title') || 'ToolUp Store';
+        // Extract parameters with fallbacks
+        const title = searchParams.get('title') ?? 'ToolUp Store';
         const price = searchParams.get('price');
         const image = searchParams.get('image');
         const category = searchParams.get('category');
+
+        // Format price safely
+        const formatPrice = (priceStr) => {
+            if (!priceStr) return null;
+            const num = parseFloat(priceStr);
+            return isNaN(num) ? null : num.toLocaleString();
+        };
+
+        const formattedPrice = formatPrice(price);
 
         return new ImageResponse(
             (
@@ -26,6 +34,7 @@ export default async function handler(request) {
                         justifyContent: 'center',
                         backgroundColor: '#fff',
                         backgroundImage: 'linear-gradient(45deg, #2563EB 0%, #1D4ED8 100%)',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
                     }}
                 >
                     <div
@@ -42,20 +51,31 @@ export default async function handler(request) {
                             height: '80%',
                         }}
                     >
-                        <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+                        <div style={{ 
+                            display: 'flex', 
+                            width: '100%', 
+                            height: '100%',
+                            alignItems: 'center',
+                        }}>
                             {/* Product Image */}
                             {image && (
-                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ 
+                                    flex: 1, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    paddingRight: '20px',
+                                }}>
                                     <Image
                                         src={image}
                                         alt={title}
                                         style={{
-                                            maxWidth: '300px',
-                                            maxHeight: '300px',
+                                            maxWidth: '280px',
+                                            maxHeight: '280px',
                                             width: 'auto',
                                             height: 'auto',
                                             objectFit: 'contain',
-                                            borderRadius: '10px',
+                                            borderRadius: '12px',
                                         }}
                                     />
                                 </div>
@@ -68,15 +88,17 @@ export default async function handler(request) {
                                     display: 'flex',
                                     flexDirection: 'column',
                                     justifyContent: 'center',
-                                    padding: '0 40px',
+                                    padding: image ? '0 20px 0 0' : '0 40px',
                                 }}
                             >
                                 {category && (
                                     <div
                                         style={{
-                                            fontSize: '24px',
+                                            fontSize: '22px',
                                             color: '#6B7280',
-                                            marginBottom: '10px',
+                                            marginBottom: '8px',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
                                         }}
                                     >
                                         {category}
@@ -85,39 +107,43 @@ export default async function handler(request) {
                                 
                                 <div
                                     style={{
-                                        fontSize: '48px',
+                                        fontSize: image ? '42px' : '48px',
                                         fontWeight: 'bold',
                                         color: '#111827',
-                                        marginBottom: '20px',
-                                        lineHeight: 1.2,
+                                        marginBottom: '16px',
+                                        lineHeight: 1.1,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
                                     }}
                                 >
                                     {title}
                                 </div>
                                 
-                                {price && (
+                                {formattedPrice && (
                                     <div
                                         style={{
-                                            fontSize: '36px',
+                                            fontSize: '32px',
                                             fontWeight: 'bold',
-                                            color: '#2563EB',
-                                            marginBottom: '20px',
+                                            color: '#10B981',
+                                            marginBottom: '16px',
                                         }}
                                     >
-                                        ₦{parseInt(price).toLocaleString()}
+                                        ₦{formattedPrice}
                                     </div>
                                 )}
                                 
                                 <div
                                     style={{
-                                        fontSize: '28px',
-                                        fontWeight: 'bold',
+                                        fontSize: '24px',
+                                        fontWeight: '600',
                                         color: '#2563EB',
                                         display: 'flex',
                                         alignItems: 'center',
+                                        gap: '8px',
                                     }}
                                 >
-                                    🛠️ ToolUp Store
+                                    <span>🛠️</span>
+                                    <span>ToolUp Store</span>
                                 </div>
                             </div>
                         </div>
@@ -127,13 +153,53 @@ export default async function handler(request) {
             {
                 width: 1200,
                 height: 630,
-                emoji: 'twemoji',
+                fonts: [
+                    {
+                        name: 'Inter',
+                        data: await fetch(
+                            new URL('./fonts/Inter-Regular.woff', import.meta.url)
+                        ).then((res) => res.arrayBuffer()).catch(() => null),
+                        weight: 400,
+                        style: 'normal',
+                    },
+                    {
+                        name: 'Inter',
+                        data: await fetch(
+                            new URL('./fonts/Inter-Bold.woff', import.meta.url)
+                        ).then((res) => res.arrayBuffer()).catch(() => null),
+                        weight: 700,
+                        style: 'normal',
+                    },
+                ].filter(font => font.data !== null),
             }
         );
-    } catch (e) {
-        console.log(`${e.message}`);
-        return new Response(`Failed to generate the image`, {
-            status: 500,
-        });
+    } catch (error) {
+        console.error('OG Image generation error:', error);
+        
+        // Return a simple fallback image
+        return new ImageResponse(
+            (
+                <div
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: '#2563EB',
+                        color: 'white',
+                        fontSize: '48px',
+                        fontWeight: 'bold',
+                        fontFamily: 'system-ui, sans-serif',
+                    }}
+                >
+                    🛠️ ToolUp Store
+                </div>
+            ),
+            {
+                width: 1200,
+                height: 630,
+            }
+        );
     }
 }
