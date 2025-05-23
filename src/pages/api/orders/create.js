@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/api/orders/create.js
 import { google } from 'googleapis';
+import { sendOrderConfirmationEmail } from '../../../services/emailService';
 
 let jwtClient = null;
 let nodemailer = null;
@@ -56,10 +57,10 @@ const generateOrderId = () => {
     return `ORD-${timestamp}-${random}`;
 };
 
-// Create email transporter
+// Create email transporter (fallback for direct email sending)
 const createEmailTransporter = async () => {
     const nodemailerModule = await getNodemailer();
-    return nodemailerModule.createTransporter({
+    return nodemailerModule.createTransport({
         service: 'gmail', // or your preferred email service
         auth: {
             user: process.env.EMAIL_USER, // Your email
@@ -76,8 +77,8 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-// Send order confirmation email to guest
-const sendGuestOrderEmail = async (orderData) => {
+// Fallback email function (keeps your original implementation as backup)
+const sendGuestOrderEmailFallback = async (orderData) => {
     try {
         const transporter = await createEmailTransporter();
         
@@ -167,10 +168,10 @@ const sendGuestOrderEmail = async (orderData) => {
         };
 
         await transporter.sendMail(mailOptions);
-        console.log('Order confirmation email sent to:', customer.email);
+        console.log('Fallback order confirmation email sent to:', customer.email);
         return true;
     } catch (error) {
-        console.error('Error sending email:', error);
+        console.error('Error sending fallback email:', error);
         return false;
     }
 };
@@ -224,6 +225,7 @@ export default async function handler(req, res) {
         const orderId = generateOrderId();
         const orderDateFormatted = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
         const status = 'pending'; // Initial status
+        const createdAt = new Date().toISOString();
 
         // Step 1: Get the headers from the Orders sheet to ensure we insert data in the right order
         let orderHeaders = [];
@@ -241,7 +243,8 @@ export default async function handler(req, res) {
                     'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee', 
                     'paymentMethod', 'currency', 'isAuthenticated', 'isGuestCheckout',
                     'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone', 
-                    'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo'
+                    'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo',
+                    'createdAt', 'updatedAt'
                 ];
                 
                 // Create the headers if they don't exist
@@ -274,7 +277,8 @@ export default async function handler(req, res) {
                     'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee', 
                     'paymentMethod', 'currency', 'isAuthenticated', 'isGuestCheckout',
                     'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone', 
-                    'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo'
+                    'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo',
+                    'createdAt', 'updatedAt'
                 ];
                 
                 await sheets.spreadsheets.values.update({
@@ -380,6 +384,12 @@ export default async function handler(req, res) {
                 case 'additionalinfo':
                     orderRow[index] = customer.additionalInfo || '';
                     break;
+                case 'createdat':
+                    orderRow[index] = createdAt;
+                    break;
+                case 'updatedat':
+                    orderRow[index] = createdAt;
+                    break;
                 default:
                     // Keep empty string for unknown headers
                     break;
@@ -408,7 +418,7 @@ export default async function handler(req, res) {
                 itemHeaders = itemsHeaderResponse.data.values[0];
             } else {
                 // If no headers exist, define the default structure
-                itemHeaders = ['orderId', 'productId', 'productName', 'quantity', 'price'];
+                itemHeaders = ['orderId', 'productId', 'productName', 'quantity', 'price', 'imageUrl'];
                 
                 // Create the headers if they don't exist
                 await sheets.spreadsheets.values.update({
@@ -436,7 +446,7 @@ export default async function handler(req, res) {
                     }
                 });
                 
-                itemHeaders = ['orderId', 'productId', 'productName', 'quantity', 'price'];
+                itemHeaders = ['orderId', 'productId', 'productName', 'quantity', 'price', 'imageUrl'];
                 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: sheetId,
@@ -487,6 +497,9 @@ export default async function handler(req, res) {
                     case 'price':
                         row[index] = item.price?.toString() || '0';
                         break;
+                    case 'imageurl':
+                        row[index] = item.imageUrl || '';
+                        break;
                     default:
                         // Keep empty string for unknown headers
                         break;
@@ -508,18 +521,75 @@ export default async function handler(req, res) {
             });
         }
 
-        // Step 5: Send email to guest users if requested
+        // Step 5: Send email confirmation using the email service
         let emailSent = false;
-        if (sendGuestEmail && !isAuthenticated) {
-            emailSent = await sendGuestOrderEmail({
-                orderId,
-                customer,
-                items,
-                totalAmount,
-                shippingFee: shippingFee || 0,
-                paymentMethod,
-                currency: currency || 'NGN'
-            });
+        let emailError = null;
+
+        // Prepare order details for the email service
+        const orderDetails = {
+            orderId,
+            items: items.map(item => ({
+                name: item.name,
+                price: parseFloat(item.price),
+                quantity: parseInt(item.quantity),
+                imageUrl: item.imageUrl || ''
+            })),
+            shippingDetails: {
+                fullName: `${customer.firstName} ${customer.lastName}`,
+                phone: customer.phoneNumber,
+                email: customer.email,
+                address: customer.address || '',
+                city: customer.city || '',
+                state: customer.state || '',
+                lga: customer.lga || '',
+                additionalInfo: customer.additionalInfo || ''
+            },
+            paymentMethod,
+            total: totalAmount,
+            shippingFee: shippingFee || 0,
+            status: 'pending',
+            orderDate: createdAt
+        };
+
+        // Try to send email using the email service first
+        try {
+            const emailResult = await sendOrderConfirmationEmail(orderDetails);
+            
+            if (emailResult && emailResult.success) {
+                console.log('Order confirmation email sent successfully via email service');
+                emailSent = true;
+            } else {
+                console.log('Email service failed, trying fallback method');
+                // Try fallback method if email service fails
+                if (sendGuestEmail !== false) {
+                    emailSent = await sendGuestOrderEmailFallback({
+                        orderId,
+                        customer,
+                        items,
+                        totalAmount,
+                        shippingFee: shippingFee || 0,
+                        paymentMethod,
+                        currency: currency || 'NGN'
+                    });
+                }
+            }
+        } catch (emailServiceError) {
+            console.error('Email service error:', emailServiceError);
+            emailError = emailServiceError.message;
+            
+            // Try fallback method if email service throws an error
+            if (sendGuestEmail !== false) {
+                console.log('Attempting fallback email method');
+                emailSent = await sendGuestOrderEmailFallback({
+                    orderId,
+                    customer,
+                    items,
+                    totalAmount,
+                    shippingFee: shippingFee || 0,
+                    paymentMethod,
+                    currency: currency || 'NGN'
+                });
+            }
         }
 
         // Return success with order information
@@ -528,6 +598,7 @@ export default async function handler(req, res) {
             orderId,
             message: 'Order created successfully',
             emailSent: emailSent,
+            emailError: emailError,
             order: {
                 orderId,
                 userId,
@@ -536,6 +607,7 @@ export default async function handler(req, res) {
                 totalAmount,
                 shippingFee: shippingFee || 0,
                 paymentMethod,
+                createdAt,
                 customer: {
                     firstName: customer.firstName,
                     lastName: customer.lastName,
@@ -546,7 +618,8 @@ export default async function handler(req, res) {
                     productId: item.productId,
                     name: item.name,
                     quantity: item.quantity,
-                    price: item.price
+                    price: item.price,
+                    imageUrl: item.imageUrl
                 }))
             }
         });
