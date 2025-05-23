@@ -59,14 +59,18 @@ const Header = () => {
                     <Link href="/" className="flex items-center">
                         <div className="flex items-center space-x-2">
                             <Image
-                                src="/logo-2.png" // ✅ renamed image without spaces
+                                src="/logo-2.png"
                                 alt="ToolUp Store Logo"
                                 width={33}
                                 height={33}
                                 priority
                                 className="rounded h-auto w-auto" // ✅ maintain aspect ratio
                             />
-                            <span className="text-3xl font-bold text-primary-700">ToolUp Store</span>
+                            {/* Mobile: smaller text, Desktop: full size */}
+                            <span className="text-xl sm:text-2xl md:text-3xl font-bold text-primary-700">
+                                <span className="block sm:hidden">ToolUp</span>
+                                <span className="hidden sm:block">ToolUp Store</span>
+                            </span>
                         </div>
                     </Link>
 

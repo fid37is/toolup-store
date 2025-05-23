@@ -231,7 +231,7 @@ const CartPage = () => {
                                     <p className="text-gray-500 mb-6">Looks like you haven&apos;t added any products to your cart yet.</p>
                                     <button 
                                         onClick={continueShopping}
-                                        className="px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition"
+                                        className="px-5 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white rounded hover:bg-primary-600 transition"
                                         disabled={isCheckingOut}
                                     >
                                         Browse Products
