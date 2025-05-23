@@ -7,12 +7,12 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import OrderSummary from '../components/checkout/OrderSummary';
 import ContactInformation from '../components/checkout/ContactInformation';
-import PaymentMethod from '../components/checkout/PaymentMethod';
 import LoadingScreen from '../components/LoadingScreen';
 import { notifyEvent } from '../components/Notification';
 import AddressManager from '../components/AddressManager';
 import OrderConfirmationModal from '../components/checkout/OrderConfirmationModal';
 import { useCheckoutAddress } from '../hooks/useCheckoutAddress';
+import PaymentMethodSelector from '../components/checkout/PaymentMethodSelector';
 
 export default function Checkout() {
     const router = useRouter();
@@ -33,6 +33,10 @@ export default function Checkout() {
     // Order completed state
     const [showOrderModal, setShowOrderModal] = useState(false);
     const [orderDetails, setOrderDetails] = useState(null);
+
+    // Bank transfer popup state
+    const [showBankTransferPopup, setShowBankTransferPopup] = useState(false);
+    const [pendingOrderId, setPendingOrderId] = useState(null);
 
     // Form data and shipping calculations
     const [formData, setFormData] = useState({
@@ -162,6 +166,46 @@ export default function Checkout() {
         }
     };
 
+    const calculateShippingFeeAdjustment = (paymentMethod, baseShippingFee) => {
+        switch (paymentMethod) {
+            case 'pay_on_delivery':
+                return baseShippingFee; // Removed COD fee as per PaymentMethodSelector
+            case 'pay_at_pickup':
+                return 0; // Free shipping for pickup
+            default:
+                return baseShippingFee; // Default shipping fee
+        }
+    };
+
+    const handlePaymentMethodChange = (newMethod) => {
+        setPaymentMethod(newMethod);
+
+        // Calculate new shipping fee
+        const newShippingFee = calculateShippingFeeAdjustment(newMethod, baseShippingFee);
+        setShippingFee(newShippingFee);
+
+        // Update payment verification status
+        if (newMethod.startsWith('saved_card_') ||
+            newMethod === 'bank_transfer' ||
+            newMethod === 'pay_on_delivery' ||
+            newMethod === 'pay_at_pickup') {
+            setPaymentVerified(true);
+        } else if (newMethod === 'card') {
+            setPaymentVerified(false); // Will need card details
+        }
+    };
+
+    // Handle shipping fee updates from the component
+    const handleShippingFeeChange = (feeAdjustment) => {
+        if (feeAdjustment < 0) {
+            // This is pay_at_pickup - set shipping to 0
+            setShippingFee(0);
+        } else {
+            // Add the fee adjustment to base shipping
+            setShippingFee(baseShippingFee + feeAdjustment);
+        }
+    };
+
     const loadAuthAndUserData = async () => {
         const authStatus = localStorage.getItem('isAuthenticated');
         const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -230,21 +274,28 @@ export default function Checkout() {
         }
     };
 
-    // Load user's default payment method
+    // Load user's default payment method and saved cards
     const loadUserDefaultPaymentMethod = async (userIdParam) => {
         try {
             const response = await fetch(`/api/users/payment-methods/${userIdParam}`);
             if (response.ok) {
-                const paymentMethods = await response.json();
+                const data = await response.json();
+                const { paymentMethods = [], savedCards = [] } = data;
+
+                // Find default payment method
+                const defaultCard = savedCards.find(card => card.isDefault);
                 const defaultMethod = paymentMethods.find(method => method.isDefault);
-                
-                if (defaultMethod) {
-                    // Set the default payment method based on type
+
+                if (defaultCard) {
+                    setPaymentMethod(`saved_card_${defaultCard.id}`);
+                    setShippingFee(baseShippingFee);
+                    setPaymentVerified(true);
+                } else if (defaultMethod) {
                     switch (defaultMethod.type) {
                         case 'card':
-                            setPaymentMethod(`saved_card_${defaultMethod.id}`);
+                            setPaymentMethod('card');
                             setShippingFee(baseShippingFee);
-                            setPaymentVerified(true);
+                            setPaymentVerified(false); // Needs card details
                             break;
                         case 'bank_transfer':
                             setPaymentMethod('bank_transfer');
@@ -253,36 +304,36 @@ export default function Checkout() {
                             break;
                         case 'pay_on_delivery':
                             setPaymentMethod('pay_on_delivery');
-                            setShippingFee(baseShippingFee + 500);
+                            setShippingFee(baseShippingFee);
                             setPaymentVerified(true);
                             break;
                         case 'pay_at_pickup':
                             setPaymentMethod('pay_at_pickup');
-                            setShippingFee(0); // No shipping fee for pickup
+                            setShippingFee(0);
                             setPaymentVerified(true);
                             break;
                         default:
                             setPaymentMethod('pay_on_delivery');
-                            setShippingFee(baseShippingFee + 500);
+                            setShippingFee(baseShippingFee);
                             setPaymentVerified(true);
                     }
                 } else {
                     // No default method found, use pay_on_delivery as fallback
                     setPaymentMethod('pay_on_delivery');
-                    setShippingFee(baseShippingFee + 500);
+                    setShippingFee(baseShippingFee);
                     setPaymentVerified(true);
                 }
             } else {
                 // Error fetching payment methods, use default
                 setPaymentMethod('pay_on_delivery');
-                setShippingFee(baseShippingFee + 500);
+                setShippingFee(baseShippingFee);
                 setPaymentVerified(true);
             }
         } catch (error) {
             console.error('Error loading user payment methods:', error);
             // Fallback to pay_on_delivery
             setPaymentMethod('pay_on_delivery');
-            setShippingFee(baseShippingFee + 500);
+            setShippingFee(baseShippingFee);
             setPaymentVerified(true);
         }
     };
@@ -332,6 +383,39 @@ export default function Checkout() {
             }
         }
     }, []);
+
+    // Handle bank transfer order completion
+    const handleBankTransferOrderComplete = () => {
+        console.log('Completing bank transfer order:', pendingOrderId);
+        
+        // Clear checkout data
+        if (mode === 'direct') {
+            localStorage.removeItem('directPurchaseItem');
+        } else {
+            localStorage.removeItem('cart');
+            window.dispatchEvent(new CustomEvent('cartUpdated'));
+        }
+
+        if (isGuestCheckout) {
+            localStorage.removeItem('guestCheckout');
+        }
+
+        // Close bank transfer popup
+        setShowBankTransferPopup(false);
+        
+        // Clear pending order ID
+        setPendingOrderId(null);
+        
+        // Show success message
+        notifyEvent('Payment confirmed! Your order has been processed successfully.', 'success');
+        
+        // Redirect to orders page or home
+        if (isAuthenticated) {
+            router.push('/account/orders');
+        } else {
+            router.push('/');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -413,8 +497,16 @@ export default function Checkout() {
 
             if (data.order && data.order.orderId) {
                 localStorage.setItem('lastOrderId', data.order.orderId);
+                setPendingOrderId(data.order.orderId);
 
-                // Clear checkout data
+                // If bank transfer is selected, show the popup
+                if (paymentMethod === 'bank_transfer') {
+                    setIsSubmitting(false);
+                    setShowBankTransferPopup(true);
+                    return;
+                }
+
+                // Clear checkout data for other payment methods
                 if (mode === 'direct') {
                     localStorage.removeItem('directPurchaseItem');
                 } else {
@@ -425,6 +517,9 @@ export default function Checkout() {
                 if (isGuestCheckout) {
                     localStorage.removeItem('guestCheckout');
                 }
+
+                // Clear pending order ID for non-bank-transfer payments
+                setPendingOrderId(null);
 
                 if (!res.ok && data.warning) {
                     notifyEvent(data.warning, 'warning');
@@ -575,14 +670,18 @@ export default function Checkout() {
 
                             {/* Payment Method */}
                             <div className="bg-white rounded-xl shadow-lg p-6">
-                                <PaymentMethod
-                                    paymentMethod={paymentMethod}
-                                    setPaymentMethod={setPaymentMethod}
-                                    setPaymentVerified={setPaymentVerified}
-                                    setShippingFee={setShippingFee}
-                                    baseShippingFee={baseShippingFee}
+                                <PaymentMethodSelector
+                                    selectedMethod={paymentMethod}
+                                    onMethodChange={handlePaymentMethodChange}
+                                    onShippingFeeChange={handleShippingFeeChange}
+                                    onPaymentVerifiedChange={setPaymentVerified}
                                     userId={userId}
                                     isAuthenticated={isAuthenticated}
+                                    onOrderComplete={handleBankTransferOrderComplete}
+                                    showBankTransferPopup={showBankTransferPopup}
+                                    onCloseBankTransferPopup={() => setShowBankTransferPopup(false)}
+                                    orderTotal={total}
+                                    pendingOrderId={pendingOrderId}
                                 />
                             </div>
 
