@@ -56,8 +56,6 @@ export default function Checkout() {
         }
     }, [router.isReady, mode]);
 
-
-
     // Validate form whenever form data or payment status changes
     useEffect(() => {
         validateForm();
@@ -202,6 +200,9 @@ export default function Checkout() {
                                 additionalInfo: userProfile.defaultAddress.additionalInfo || ''
                             }));
                         }
+
+                        // Set default payment method from user profile
+                        await loadUserDefaultPaymentMethod(user.id);
                     } else {
                         setFormData(prevState => ({
                             ...prevState,
@@ -210,6 +211,8 @@ export default function Checkout() {
                             lastName: user.name?.split(' ').slice(1).join(' ') || '',
                             phoneNumber: user.phone || ''
                         }));
+                        // Set default payment method
+                        await loadUserDefaultPaymentMethod(user.id);
                     }
                 } catch (error) {
                     console.error("Error fetching user profile:", error);
@@ -224,6 +227,63 @@ export default function Checkout() {
             }
         } else {
             setUserId(`guest-${Date.now()}`);
+        }
+    };
+
+    // Load user's default payment method
+    const loadUserDefaultPaymentMethod = async (userIdParam) => {
+        try {
+            const response = await fetch(`/api/users/payment-methods/${userIdParam}`);
+            if (response.ok) {
+                const paymentMethods = await response.json();
+                const defaultMethod = paymentMethods.find(method => method.isDefault);
+                
+                if (defaultMethod) {
+                    // Set the default payment method based on type
+                    switch (defaultMethod.type) {
+                        case 'card':
+                            setPaymentMethod(`saved_card_${defaultMethod.id}`);
+                            setShippingFee(baseShippingFee);
+                            setPaymentVerified(true);
+                            break;
+                        case 'bank_transfer':
+                            setPaymentMethod('bank_transfer');
+                            setShippingFee(baseShippingFee);
+                            setPaymentVerified(true);
+                            break;
+                        case 'pay_on_delivery':
+                            setPaymentMethod('pay_on_delivery');
+                            setShippingFee(baseShippingFee + 500);
+                            setPaymentVerified(true);
+                            break;
+                        case 'pay_at_pickup':
+                            setPaymentMethod('pay_at_pickup');
+                            setShippingFee(0); // No shipping fee for pickup
+                            setPaymentVerified(true);
+                            break;
+                        default:
+                            setPaymentMethod('pay_on_delivery');
+                            setShippingFee(baseShippingFee + 500);
+                            setPaymentVerified(true);
+                    }
+                } else {
+                    // No default method found, use pay_on_delivery as fallback
+                    setPaymentMethod('pay_on_delivery');
+                    setShippingFee(baseShippingFee + 500);
+                    setPaymentVerified(true);
+                }
+            } else {
+                // Error fetching payment methods, use default
+                setPaymentMethod('pay_on_delivery');
+                setShippingFee(baseShippingFee + 500);
+                setPaymentVerified(true);
+            }
+        } catch (error) {
+            console.error('Error loading user payment methods:', error);
+            // Fallback to pay_on_delivery
+            setPaymentMethod('pay_on_delivery');
+            setShippingFee(baseShippingFee + 500);
+            setPaymentVerified(true);
         }
     };
 
@@ -287,10 +347,12 @@ export default function Checkout() {
             if (!formData.lastName) validationErrors.push('Last name is required');
             if (!formData.phoneNumber) validationErrors.push('Phone number is required');
 
-            // Shipping address validation
-            if (!checkoutData.address) validationErrors.push('Street address is required');
-            if (!checkoutData.state) validationErrors.push('State is required');
-            if (!checkoutData.lga) validationErrors.push('LGA is required');
+            // Shipping address validation (skip for pickup)
+            if (paymentMethod !== 'pay_at_pickup') {
+                if (!checkoutData.address) validationErrors.push('Street address is required');
+                if (!checkoutData.state) validationErrors.push('State is required');
+                if (!checkoutData.lga) validationErrors.push('LGA is required');
+            }
 
             // Terms validation
             if (!termsAccepted) validationErrors.push('You must accept the terms and conditions');
@@ -436,17 +498,8 @@ export default function Checkout() {
             <Header />
 
             <main className="container mx-auto flex-grow px-4 py-8">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-center mb-8">
                     <h1 className="text-center text-3xl font-bold text-gray-800">Complete Your Order</h1>
-                    <button
-                        onClick={handleCancel}
-                        className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                    >
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Cancel
-                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -505,18 +558,20 @@ export default function Checkout() {
                                 />
                             </div>
 
-                            {/* Address Manager */}
-                            <div className="bg-white rounded-xl shadow-lg p-6">
-                                <AddressManager
-                                    mode="checkout"
-                                    formData={checkoutData}
-                                    handleInputChange={(e) => setCheckoutData(prev => ({ ...prev, [e.target.name]: e.target.value }))}
-                                    onAddressSelect={(address) => setCheckoutData(prev => ({ ...prev, ...address }))}
-                                    setShippingFee={setShippingFee}
-                                    setBaseShippingFee={setBaseShippingFee}
-                                    paymentMethod={paymentMethod}
-                                />
-                            </div>
+                            {/* Address Manager - Skip for pickup */}
+                            {paymentMethod !== 'pay_at_pickup' && (
+                                <div className="bg-white rounded-xl shadow-lg p-6">
+                                    <AddressManager
+                                        mode="checkout"
+                                        formData={checkoutData}
+                                        handleInputChange={(e) => setCheckoutData(prev => ({ ...prev, [e.target.name]: e.target.value }))}
+                                        onAddressSelect={(address) => setCheckoutData(prev => ({ ...prev, ...address }))}
+                                        setShippingFee={setShippingFee}
+                                        setBaseShippingFee={setBaseShippingFee}
+                                        paymentMethod={paymentMethod}
+                                    />
+                                </div>
+                            )}
 
                             {/* Payment Method */}
                             <div className="bg-white rounded-xl shadow-lg p-6">
@@ -526,6 +581,8 @@ export default function Checkout() {
                                     setPaymentVerified={setPaymentVerified}
                                     setShippingFee={setShippingFee}
                                     baseShippingFee={baseShippingFee}
+                                    userId={userId}
+                                    isAuthenticated={isAuthenticated}
                                 />
                             </div>
 
@@ -605,7 +662,6 @@ export default function Checkout() {
                                     )}
                                 </button>
                             </div>
-
 
                         </form>
                     </div>

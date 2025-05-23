@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getStates, getLGAs } from '../utils/locationService';
 import { getUserAddresses, addUserAddress, updateUserAddress, deleteUserAddress, setDefaultAddress } from '../services/addressService';
-import { MapPin, Plus, Edit, Trash2, Check, X } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, Check, X, Loader2 } from 'lucide-react';
 
 const AddressManager = ({ 
     mode = 'settings', // 'settings' or 'checkout'
@@ -21,6 +21,9 @@ const AddressManager = ({
     const [isLoadingStates, setIsLoadingStates] = useState(false);
     const [isLoadingLGAs, setIsLoadingLGAs] = useState(false);
     const [selectedAddressId, setSelectedAddressId] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(null);
+    const [errors, setErrors] = useState({});
 
     const [newAddressForm, setNewAddressForm] = useState({
         addressName: '',
@@ -113,15 +116,61 @@ const AddressManager = ({
         }
     };
 
+    // Validation function
+    const validateForm = () => {
+        const newErrors = {};
+
+        if (!newAddressForm.addressName.trim()) {
+            newErrors.addressName = 'Address name is required';
+        }
+
+        if (!newAddressForm.address.trim()) {
+            newErrors.address = 'Street address is required';
+        }
+
+        if (!newAddressForm.state) {
+            newErrors.state = 'State is required';
+        }
+
+        if (!newAddressForm.lga) {
+            newErrors.lga = 'LGA is required';
+        }
+
+        if (!newAddressForm.city.trim()) {
+            newErrors.city = 'City is required';
+        }
+
+        // Optional validation for ZIP code format (if provided)
+        if (newAddressForm.zip && !/^\d{6}$/.test(newAddressForm.zip)) {
+            newErrors.zip = 'ZIP code should be 6 digits';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleNewAddressChange = (e) => {
         const { name, value, type, checked } = e.target;
         setNewAddressForm(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+
+        // Clear error for this field when user starts typing
+        if (errors[name]) {
+            setErrors(prev => ({
+                ...prev,
+                [name]: ''
+            }));
+        }
     };
 
     const handleSaveAddress = async () => {
+        if (!validateForm()) {
+            return;
+        }
+
+        setIsSaving(true);
         try {
             if (isEditing) {
                 await updateUserAddress(isEditing, newAddressForm);
@@ -135,10 +184,14 @@ const AddressManager = ({
                 addressName: '', address: '', state: '', lga: '', city: '', 
                 town: '', landmark: '', zip: '', additionalInfo: '', isDefault: false
             });
+            setErrors({});
             
             loadAddresses();
         } catch (error) {
             console.error('Error saving address:', error);
+            // You might want to show a toast or error message here
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -146,15 +199,19 @@ const AddressManager = ({
         setNewAddressForm(address);
         setIsEditing(address.id);
         setIsAddingNew(true);
+        setErrors({});
     };
 
     const handleDeleteAddress = async (addressId) => {
         if (window.confirm('Are you sure you want to delete this address?')) {
+            setIsDeleting(addressId);
             try {
                 await deleteUserAddress(addressId);
                 loadAddresses();
             } catch (error) {
                 console.error('Error deleting address:', error);
+            } finally {
+                setIsDeleting(null);
             }
         }
     };
@@ -191,6 +248,81 @@ const AddressManager = ({
         return 3500;
     };
 
+    const handleCancelForm = () => {
+        setIsAddingNew(false);
+        setIsEditing(null);
+        setNewAddressForm({
+            addressName: '', address: '', state: '', lga: '', city: '', 
+            town: '', landmark: '', zip: '', additionalInfo: '', isDefault: false
+        });
+        setErrors({});
+    };
+
+    // Helper function to render input with error
+    const renderInput = (name, label, placeholder, required = false, type = 'text') => (
+        <div className={type === 'textarea' ? 'md:col-span-2' : ''}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            {type === 'textarea' ? (
+                <textarea
+                    name={name}
+                    placeholder={placeholder}
+                    value={newAddressForm[name]}
+                    onChange={handleNewAddressChange}
+                    rows={3}
+                    className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${
+                        errors[name] ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                />
+            ) : (
+                <input
+                    type={type}
+                    name={name}
+                    placeholder={placeholder}
+                    value={newAddressForm[name]}
+                    onChange={handleNewAddressChange}
+                    className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${
+                        errors[name] ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required={required}
+                />
+            )}
+            {errors[name] && (
+                <p className="mt-1 text-sm text-red-600">{errors[name]}</p>
+            )}
+        </div>
+    );
+
+    // Helper function to render select with error
+    const renderSelect = (name, label, options, required = false, disabled = false, loading = false) => (
+        <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <select
+                name={name}
+                value={newAddressForm[name]}
+                onChange={handleNewAddressChange}
+                disabled={disabled || loading}
+                className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${
+                    errors[name] ? 'border-red-500' : 'border-gray-300'
+                } ${disabled ? 'bg-gray-100' : ''}`}
+                required={required}
+            >
+                <option value="">
+                    {loading ? 'Loading...' : `Select ${label}`}
+                </option>
+                {options.map(option => (
+                    <option key={option} value={option}>{option}</option>
+                ))}
+            </select>
+            {errors[name] && (
+                <p className="mt-1 text-sm text-red-600">{errors[name]}</p>
+            )}
+        </div>
+    );
+
     // Settings Mode Render
     if (mode === 'settings') {
         return (
@@ -199,8 +331,8 @@ const AddressManager = ({
                 <div className="border-b border-gray-100 p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                                <MapPin className="h-5 w-5 text-blue-600" />
+                            <div className="p-2 bg-blue-100 rounded">
+                                <MapPin className="h-5 w-5 text-primary-700" />
                             </div>
                             <div>
                                 <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Shipping Addresses</h2>
@@ -210,7 +342,7 @@ const AddressManager = ({
                         {!isAddingNew && !isEditing && (
                             <button
                                 onClick={() => setIsAddingNew(true)}
-                                className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto"
+                                className="flex items-center justify-center space-x-2 bg-primary-700 text-white px-4 py-2 rounded hover:bg-primary-500 transition-colors w-full sm:w-auto"
                             >
                                 <Plus className="h-4 w-4" />
                                 <span>Add Address</span>
@@ -228,145 +360,15 @@ const AddressManager = ({
                             </h3>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Address Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="addressName"
-                                        placeholder="Home, Work, etc."
-                                        value={newAddressForm.addressName}
-                                        onChange={handleNewAddressChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Street Address <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="address"
-                                        placeholder="House number, street name"
-                                        value={newAddressForm.address}
-                                        onChange={handleNewAddressChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        State <span className="text-red-500">*</span>
-                                    </label>
-                                    <select
-                                        name="state"
-                                        value={newAddressForm.state}
-                                        onChange={handleNewAddressChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    >
-                                        <option value="">Select State</option>
-                                        {states.map(state => (
-                                            <option key={state} value={state}>{state}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        LGA <span className="text-red-500">*</span>
-                                    </label>
-                                    <select
-                                        name="lga"
-                                        value={newAddressForm.lga}
-                                        onChange={handleNewAddressChange}
-                                        disabled={!newAddressForm.state || isLoadingLGAs}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                                        required
-                                    >
-                                        <option value="">
-                                            {isLoadingLGAs ? 'Loading...' : 'Select LGA'}
-                                        </option>
-                                        {lgas.map(lga => (
-                                            <option key={lga} value={lga}>{lga}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        City <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="city"
-                                        placeholder="City"
-                                        value={newAddressForm.city}
-                                        onChange={handleNewAddressChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Town/Area
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="town"
-                                        placeholder="Town or Area"
-                                        value={newAddressForm.town}
-                                        onChange={handleNewAddressChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Landmark
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="landmark"
-                                        placeholder="Nearest landmark"
-                                        value={newAddressForm.landmark}
-                                        onChange={handleNewAddressChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        ZIP Code
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="zip"
-                                        placeholder="Postal code"
-                                        value={newAddressForm.zip}
-                                        onChange={handleNewAddressChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Additional Information
-                                    </label>
-                                    <textarea
-                                        name="additionalInfo"
-                                        placeholder="Any additional delivery instructions"
-                                        value={newAddressForm.additionalInfo}
-                                        onChange={handleNewAddressChange}
-                                        rows={3}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                </div>
+                                {renderInput('addressName', 'Address Name', 'Home, Work, etc.', true)}
+                                {renderInput('address', 'Street Address', 'House number, street name', true)}
+                                {renderSelect('state', 'State', states, true, false, isLoadingStates)}
+                                {renderSelect('lga', 'LGA', lgas, true, !newAddressForm.state, isLoadingLGAs)}
+                                {renderInput('city', 'City', 'City', true)}
+                                {renderInput('town', 'Town/Area', 'Town or Area')}
+                                {renderInput('landmark', 'Landmark', 'Nearest landmark')}
+                                {renderInput('zip', 'ZIP Code', 'Postal code')}
+                                {renderInput('additionalInfo', 'Additional Information', 'Any additional delivery instructions', false, 'textarea')}
 
                                 <div className="md:col-span-2">
                                     <label className="flex items-center space-x-2">
@@ -375,7 +377,7 @@ const AddressManager = ({
                                             name="isDefault"
                                             checked={newAddressForm.isDefault}
                                             onChange={handleNewAddressChange}
-                                            className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                            className="h-4 w-4 text-primary-700 rounded border-gray-300 focus:ring-primary-500"
                                         />
                                         <span className="text-sm text-gray-700">Set as default address</span>
                                     </label>
@@ -385,21 +387,20 @@ const AddressManager = ({
                             <div className="flex flex-col sm:flex-row gap-3 mt-6">
                                 <button
                                     onClick={handleSaveAddress}
-                                    className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                                    disabled={isSaving}
+                                    className="flex items-center justify-center space-x-2 bg-primary-700 text-white px-4 py-2 rounded hover:bg-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <Check className="h-4 w-4" />
-                                    <span>{isEditing ? 'Update Address' : 'Save Address'}</span>
+                                    {isSaving ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Check className="h-4 w-4" />
+                                    )}
+                                    <span>{isSaving ? 'Saving...' : (isEditing ? 'Update Address' : 'Save Address')}</span>
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        setIsAddingNew(false);
-                                        setIsEditing(null);
-                                        setNewAddressForm({
-                                            addressName: '', address: '', state: '', lga: '', city: '', 
-                                            town: '', landmark: '', zip: '', additionalInfo: '', isDefault: false
-                                        });
-                                    }}
-                                    className="flex items-center justify-center space-x-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    onClick={handleCancelForm}
+                                    disabled={isSaving}
+                                    className="flex items-center justify-center space-x-2 border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <X className="h-4 w-4" />
                                     <span>Cancel</span>
@@ -416,7 +417,7 @@ const AddressManager = ({
                                     <div className="flex items-center space-x-2 min-w-0 flex-1">
                                         <h3 className="font-semibold text-gray-900 truncate">{address.addressName}</h3>
                                         {address.isDefault && (
-                                            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
+                                            <span className="px-2 py-1 text-xs bg-blue-100 text-primary-700 rounded-full whitespace-nowrap">
                                                 Default
                                             </span>
                                         )}
@@ -424,15 +425,21 @@ const AddressManager = ({
                                     <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
                                         <button
                                             onClick={() => handleEditAddress(address)}
-                                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
+                                            disabled={isSaving}
+                                            className="p-2 text-gray-400 hover:text-primary-700 transition-colors rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Edit className="h-4 w-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDeleteAddress(address.id)}
-                                            className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
+                                            disabled={isDeleting === address.id}
+                                            className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <Trash2 className="h-4 w-4" />
+                                            {isDeleting === address.id ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="h-4 w-4" />
+                                            )}
                                         </button>
                                     </div>
                                 </div>
@@ -447,7 +454,7 @@ const AddressManager = ({
                                 {!address.isDefault && (
                                     <button
                                         onClick={() => handleSetDefault(address.id)}
-                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition-colors"
+                                        className="text-xs text-primary-700 hover:text-primary-500 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition-colors"
                                     >
                                         Set as Default
                                     </button>
@@ -474,8 +481,8 @@ const AddressManager = ({
             {/* Header */}
             <div className="border-b border-gray-100 p-4 sm:p-6">
                 <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                        <MapPin className="h-5 w-5 text-blue-600" />
+                    <div className="p-2 bg-blue-100 rounded">
+                        <MapPin className="h-5 w-5 text-primary-700" />
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold text-gray-900">Shipping Address</h2>
@@ -493,9 +500,9 @@ const AddressManager = ({
                             {addresses.map(address => (
                                 <div 
                                     key={address.id}
-                                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                                    className={`border rounded p-4 cursor-pointer transition-all ${
                                         selectedAddressId === address.id 
-                                            ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                                            ? 'border-accent-500 bg-blue-50 shadow-sm' 
                                             : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                                     }`}
                                     onClick={() => handleSelectAddress(address)}
@@ -552,7 +559,7 @@ const AddressManager = ({
                                         {/* Selection Indicator */}
                                         <div className="flex-shrink-0 mt-1">
                                             {selectedAddressId === address.id ? (
-                                                <div className="p-1.5 bg-blue-500 rounded-full">
+                                                <div className="p-1.5 bg-primary-500 rounded-full">
                                                     <Check className="h-3 w-3 text-white" />
                                                 </div>
                                             ) : (
@@ -585,7 +592,7 @@ const AddressManager = ({
                             placeholder="House number, street name"
                             value={formData?.address || ''}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent"
                             required
                         />
                     </div>
@@ -599,7 +606,7 @@ const AddressManager = ({
                                 name="state"
                                 value={formData?.state || ''}
                                 onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-accent-500 focus:border-transparent"
                                 required
                             >
                                 <option value="">Select State</option>
@@ -618,7 +625,7 @@ const AddressManager = ({
                                 value={formData?.lga || ''}
                                 onChange={handleInputChange}
                                 disabled={!formData?.state}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-accent-500 focus:border-transparent disabled:bg-gray-100"
                                 required
                             >
                                 <option value="">Select LGA</option>
@@ -638,7 +645,7 @@ const AddressManager = ({
                                 placeholder="City"
                                 value={formData?.city || ''}
                                 onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-accent-500 focus:border-transparent"
                                 required
                             />
                         </div>
@@ -653,7 +660,7 @@ const AddressManager = ({
                                 placeholder="Town or Area"
                                 value={formData?.town || ''}
                                 onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-accent-500 focus:border-transparent"
                             />
                         </div>
 
@@ -667,7 +674,7 @@ const AddressManager = ({
                                 placeholder="Nearest landmark"
                                 value={formData?.landmark || ''}
                                 onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-accent-500 focus:border-transparent"
                             />
                         </div>
 
@@ -681,7 +688,7 @@ const AddressManager = ({
                                 placeholder="Postal code"
                                 value={formData?.zip || ''}
                                 onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-accent-500 focus:border-transparent"
                             />
                         </div>
                     </div>
@@ -696,27 +703,31 @@ const AddressManager = ({
                             value={formData?.additionalInfo || ''}
                             onChange={handleInputChange}
                             rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-accent-500 focus:border-transparent"
                         />
                     </div>
                 </div>
 
                 {/* Shipping Fee Info */}
                 {formData?.state && paymentMethod !== 'pay_on_pickup' && (
-                    <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-                        <div className="flex items-center space-x-2">
-                            <div className="p-1 bg-blue-500 rounded-full">
-                                <Check className="h-3 w-3 text-white" />
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-900">Shipping Fee</h4>
+                                <p className="text-sm text-gray-500">
+                                    To {formData.state}
+                                    {formData.city && `, ${formData.city}`}
+                                </p>
                             </div>
-                            <p className="text-sm font-medium text-blue-900">
-                                Shipping to {formData.state}: ₦{calculateShippingFee(formData.state).toLocaleString()}
-                            </p>
+                            <div className="text-right">
+                                <p className="text-lg font-semibold text-gray-900">
+                                    ₦{calculateShippingFee(formData.state).toLocaleString()}
+                                </p>
+                                {formData.state.toLowerCase() === 'delta' && (
+                                    <p className="text-xs text-green-600">Local delivery</p>
+                                )}
+                            </div>
                         </div>
-                        {formData.state.toLowerCase() === 'delta' && (
-                            <p className="text-xs text-blue-700 mt-1 ml-5">
-                                🎉 You're in our business location - enjoy reduced shipping!
-                            </p>
-                        )}
                     </div>
                 )}
             </div>
