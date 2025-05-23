@@ -61,10 +61,10 @@ const Header = () => {
                             <Image
                                 src="/logo-2.png"
                                 alt="ToolUp Store Logo"
-                                width={45}
-                                height={45}
+                                width={33}
+                                height={33}
                                 priority
-                                className="rounded-md h-auto w-auto"
+                                className="rounded h-auto w-auto" // ✅ maintain aspect ratio
                             />
                             {/* Mobile: smaller text, Desktop: full size */}
                             <span className="text-xl sm:text-2xl md:text-3xl font-bold text-primary-700">
