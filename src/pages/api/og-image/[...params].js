@@ -22,6 +22,12 @@ export default async function handler(req) {
 
         const formattedPrice = formatPrice(price);
 
+        // Set proper headers for caching and content type
+        const headers = {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+        };
+
         return new ImageResponse(
             (
                 <div
@@ -153,12 +159,13 @@ export default async function handler(req) {
             {
                 width: 1200,
                 height: 630,
+                headers
             }
         );
     } catch (error) {
         console.error('OG Image generation error:', error);
         
-        // Return a simple fallback image
+        // Return a simple fallback image with proper headers
         return new ImageResponse(
             (
                 <div
@@ -181,6 +188,10 @@ export default async function handler(req) {
             {
                 width: 1200,
                 height: 630,
+                headers: {
+                    'Content-Type': 'image/png',
+                    'Cache-Control': 'public, max-age=31536000, immutable',
+                }
             }
         );
     }

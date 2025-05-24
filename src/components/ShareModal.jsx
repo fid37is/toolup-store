@@ -2,20 +2,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-/**
- * Enhanced ShareModal Component with Rich Preview Generation
- * 
- * Displays a compact dropdown-style modal for sharing a product with proper social media previews
- *
- * @param {boolean} isOpen - Whether the modal is open
- * @param {function} onClose - Function to call when closing the modal
- * @param {string} productName - Name of the product being shared
- * @param {string} shareUrl - URL to share
- * @param {string} imageUrl - Product image URL
- * @param {function} onCopyLink - Function to handle copying the link
- * @param {object} buttonPosition - Position of the share button {top, left, height, width}
- * @param {object} product - Full product object for rich sharing
- */
 export default function ShareModal({
     isOpen,
     onClose,
@@ -24,42 +10,61 @@ export default function ShareModal({
     imageUrl,
     onCopyLink,
     buttonPosition,
-    product // Added product prop for rich sharing
+    product
 }) {
     const modalRef = useRef(null);
-    const [ogImageUrl, setOgImageUrl] = useState('');
-    const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+    const [safeShareUrl, setSafeShareUrl] = useState('');
 
-    // Generate Open Graph image URL for rich previews
+    // Generate safe URL with proper fallbacks
+    // Replace the useEffect in ShareModal.jsx that generates the URL
     useEffect(() => {
-        if (isOpen && product) {
-            generateOgImage();
-        }
-    }, [isOpen, product]);
+        if (isOpen) {
+            let url = shareUrl;
 
-    const generateOgImage = async () => {
-        if (!product) return;
-        
-        setIsGeneratingPreview(true);
-        try {
-            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-            const ogParams = new URLSearchParams({
-                title: product.name,
-                price: product.price?.toString() || '',
-                image: product.imageUrl || '',
-                category: product.category || ''
-            });
-            
-            const ogUrl = `${baseUrl}/api/og?${ogParams.toString()}`;
-            setOgImageUrl(ogUrl);
-        } catch (error) {
-            console.error('Error generating OG image:', error);
-            // Fallback to product image
-            setOgImageUrl(product.imageUrl || '');
-        } finally {
-            setIsGeneratingPreview(false);
+            // Debug logging
+            console.log('ShareModal - shareUrl:', shareUrl);
+            console.log('ShareModal - product:', product);
+            console.log('ShareModal - window.location:', typeof window !== 'undefined' ? window.location.href : 'undefined');
+
+            // If shareUrl is provided and valid, use it
+            if (url && url !== 'undefined' && !url.includes('undefined') && url.startsWith('http')) {
+                setSafeShareUrl(url);
+                console.log('ShareModal - using provided shareUrl:', url);
+                return;
+            }
+
+            // Generate URL if not provided or invalid
+            if (typeof window !== 'undefined') {
+                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+                console.log('ShareModal - baseUrl:', baseUrl);
+
+                if (product?.id) {
+                    url = `${baseUrl}/products/${product.id}`;
+                    console.log('ShareModal - generated URL from product.id:', url);
+                } else {
+                    // Fallback to current page URL, but clean it up
+                    const currentUrl = window.location.href;
+                    // Remove any hash or query parameters that might cause issues
+                    url = currentUrl.split('#')[0].split('?')[0];
+                    console.log('ShareModal - using cleaned current URL:', url);
+                }
+            } else {
+                // Server-side fallback
+                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://your-domain.com';
+                url = product?.id ? `${baseUrl}/products/${product.id}` : baseUrl;
+            }
+
+            // Final validation - ensure URL doesn't contain 'undefined'
+            if (url && !url.includes('undefined')) {
+                setSafeShareUrl(url);
+                console.log('ShareModal - final safeShareUrl set to:', url);
+            } else {
+                console.error('ShareModal - URL still contains undefined:', url);
+                // Last resort fallback
+                setSafeShareUrl(typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com');
+            }
         }
-    };
+    }, [isOpen, shareUrl, product?.id]);
 
     // Handle click outside to close
     useEffect(() => {
@@ -69,7 +74,6 @@ export default function ShareModal({
             }
         };
 
-        // Handle ESC key to close
         const handleEscKey = (event) => {
             if (event.key === 'Escape') {
                 onClose();
@@ -89,10 +93,10 @@ export default function ShareModal({
 
     // Generate rich sharing text
     const generateShareText = (platform) => {
-        const baseText = `Check out ${productName} at ToolUp Store!`;
+        const baseText = `Check out ${productName || 'this product'} at ToolUp Store!`;
         const priceText = product?.price ? ` Only ₦${product.price.toLocaleString()}` : '';
         const stockText = product?.quantity > 0 ? ' - In Stock!' : ' - Limited Availability!';
-        
+
         switch (platform) {
             case 'twitter':
                 return `🛠️ ${baseText}${priceText}${stockText} #ToolUpStore #Tools #Nigeria`;
@@ -109,48 +113,43 @@ export default function ShareModal({
         }
     };
 
-    // Function to handle social media sharing with rich previews
+    // Function to handle social media sharing
     const handleSocialShare = (platform) => {
-        // Use the OG image URL for better previews, fallback to product image
-        const shareImageUrl = ogImageUrl || product?.imageUrl || imageUrl;
+        if (!safeShareUrl) {
+            console.error('No valid share URL available');
+            return;
+        }
+
         const shareText = generateShareText(platform);
-        
         let shareLink = '';
-        const encodedUrl = encodeURIComponent(shareUrl);
+        const encodedUrl = encodeURIComponent(safeShareUrl);
         const encodedTitle = encodeURIComponent(shareText);
-        const encodedImage = encodeURIComponent(shareImageUrl);
 
         switch (platform) {
             case 'facebook':
-                // Facebook automatically fetches Open Graph data
                 shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
                 break;
             case 'twitter':
-                // Twitter card with image
                 shareLink = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
                 break;
             case 'whatsapp':
-                // WhatsApp with rich preview
                 shareLink = `https://api.whatsapp.com/send?text=${encodedTitle}%20${encodedUrl}`;
                 break;
             case 'linkedin':
-                // LinkedIn sharing
                 shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
                 break;
             case 'telegram':
-                // Telegram sharing
                 shareLink = `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`;
                 break;
             case 'email':
-                const emailSubject = encodeURIComponent(`${productName} - ToolUp Store`);
-                const emailBody = encodeURIComponent(`${shareText}\n\n${shareUrl}\n\nShop more at ToolUp Store!`);
+                const emailSubject = encodeURIComponent(`${productName || 'Product'} - ToolUp Store`);
+                const emailBody = encodeURIComponent(`${shareText}\n\n${safeShareUrl}\n\nShop more at ToolUp Store!`);
                 shareLink = `mailto:?subject=${emailSubject}&body=${emailBody}`;
                 break;
             default:
                 return;
         }
 
-        // Open share window
         if (platform === 'email') {
             window.location.href = shareLink;
         } else {
@@ -158,61 +157,60 @@ export default function ShareModal({
         }
     };
 
-    // Enhanced native sharing API with more options
+    // Enhanced native sharing
     const handleNativeShare = async () => {
+        if (!safeShareUrl) {
+            console.error('No valid share URL available');
+            return;
+        }
+
         if (navigator.share) {
             try {
-                // Try native share first
                 await navigator.share({
-                    title: `${productName} - ToolUp Store`,
+                    title: `${productName || 'Product'} - ToolUp Store`,
                     text: generateShareText('native'),
-                    url: shareUrl,
+                    url: safeShareUrl,
                 });
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    // User cancelled - that's fine
-                    return;
+                if (error.name !== 'AbortError') {
+                    // If native share fails, fallback to copy link
+                    handleCopyLink();
                 }
-                // If native share fails, show additional options
-                showAdditionalShareOptions();
             }
         } else {
-            // If native share not supported, show additional options
-            showAdditionalShareOptions();
+            // If native share not supported, copy link
+            handleCopyLink();
         }
     };
 
-    // Show additional sharing options
-    const showAdditionalShareOptions = () => {
-        const options = [
-            { name: 'LinkedIn', action: () => handleSocialShare('linkedin') },
-            { name: 'Telegram', action: () => handleSocialShare('telegram') },
-            { name: 'Copy Link', action: onCopyLink }
-        ];
+    // Enhanced copy link function
+    const handleCopyLink = async () => {
+        if (!safeShareUrl) {
+            console.error('No valid share URL available');
+            return;
+        }
 
-        // Create a simple selection dialog
-        const choice = window.confirm(
-            'Choose additional sharing option:\n\n' +
-            '1. LinkedIn\n' +
-            '2. Telegram\n' +
-            '3. Copy Link\n\n' +
-            'Click OK for LinkedIn, Cancel to see other options'
-        );
-
-        if (choice) {
-            handleSocialShare('linkedin');
-        } else {
-            const telegramChoice = window.confirm('Share on Telegram? (Cancel to copy link)');
-            if (telegramChoice) {
-                handleSocialShare('telegram');
-            } else {
+        try {
+            await navigator.clipboard.writeText(safeShareUrl);
+            if (onCopyLink) {
+                onCopyLink();
+            }
+        } catch (error) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = safeShareUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (onCopyLink) {
                 onCopyLink();
             }
         }
     };
 
-    // Only render if open and on client-side
-    if (!isOpen || typeof window === 'undefined') {
+    // Only render if open and we have a valid URL
+    if (!isOpen || typeof window === 'undefined' || !safeShareUrl) {
         return null;
     }
 
@@ -221,7 +219,7 @@ export default function ShareModal({
         if (!buttonPosition) {
             return { top: '80px', right: '16px' };
         }
-        
+
         return {
             top: `${buttonPosition.top + buttonPosition.height + 8}px`,
             left: `${buttonPosition.left - 280 + buttonPosition.width}px`
@@ -229,12 +227,10 @@ export default function ShareModal({
     };
 
     const modalPosition = getModalPosition();
-
-    // Get the display image URL with proper fallback
     const displayImageUrl = product?.imageUrl || imageUrl || '/placeholder-product.jpg';
 
     return createPortal(
-        <div 
+        <div
             className="fixed z-50"
             style={{
                 top: modalPosition.top,
@@ -268,14 +264,14 @@ export default function ShareModal({
                 {/* Modal header with preview */}
                 <div className="border-b border-gray-100 p-4">
                     <h2 id="modal-title" className="text-lg font-semibold text-gray-800 mb-2">Share Product</h2>
-                    
+
                     {/* Preview card */}
                     <div className="bg-gray-50 rounded-lg p-3 border">
                         <div className="flex items-start space-x-3">
                             <div className="flex-shrink-0">
-                                <img 
-                                    src={displayImageUrl} 
-                                    alt={productName}
+                                <img
+                                    src={displayImageUrl}
+                                    alt={productName || 'Product'}
                                     className="w-12 h-12 object-cover rounded-md"
                                     onError={(e) => {
                                         e.target.src = '/placeholder-product.jpg';
@@ -284,7 +280,7 @@ export default function ShareModal({
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-900 truncate">
-                                    {productName}
+                                    {productName || 'Product'}
                                 </p>
                                 {product?.price && (
                                     <p className="text-sm text-green-600 font-semibold">
@@ -299,7 +295,7 @@ export default function ShareModal({
                     </div>
                 </div>
 
-                {/* Share options - Main platforms only */}
+                {/* Share options */}
                 <div className="p-4">
                     <div className="grid grid-cols-4 gap-3 mb-4">
                         {/* Facebook */}
@@ -324,7 +320,7 @@ export default function ShareModal({
                         >
                             <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-black">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                 </svg>
                             </div>
                             <span className="text-xs font-medium">Twitter</span>
@@ -344,32 +340,20 @@ export default function ShareModal({
                             <span className="text-xs font-medium">WhatsApp</span>
                         </button>
 
-                        {/* Email */}
+                        {/* More Options */}
                         <button
-                            onClick={() => handleSocialShare('email')}
+                            onClick={handleNativeShare}
                             className="flex flex-col items-center justify-center rounded-lg p-3 hover:bg-gray-50 transition-colors"
-                            aria-label="Share via Email"
+                            aria-label="More sharing options"
                         >
                             <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                    <polyline points="22,6 12,13 2,6"></polyline>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
                                 </svg>
                             </div>
-                            <span className="text-xs font-medium">Email</span>
+                            <span className="text-xs font-medium">More</span>
                         </button>
                     </div>
-
-                    {/* More Options button */}
-                    <button
-                        onClick={handleNativeShare}
-                        className="w-full flex items-center justify-center rounded p-2 text-sm font-medium text-white bg-accent-500 hover:bg-accent-600 transition-colors mb-4"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                        </svg>
-                        More Options (LinkedIn, Telegram)
-                    </button>
                 </div>
 
                 {/* Copy link section */}
@@ -378,25 +362,18 @@ export default function ShareModal({
                         <input
                             type="text"
                             readOnly
-                            value={shareUrl}
+                            value={safeShareUrl}
                             className="flex-1 bg-transparent text-sm text-gray-600 px-3 py-2 focus:outline-none"
                             aria-label="Share URL"
                         />
                         <button
-                            onClick={onCopyLink}
+                            onClick={handleCopyLink}
                             className="flex-shrink-0 bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 focus:outline-none transition-colors"
                         >
                             Copy Link
                         </button>
                     </div>
                 </div>
-
-                {/* Status indicator */}
-                {isGeneratingPreview && (
-                    <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
-                        <div className="text-sm text-gray-600">Generating preview...</div>
-                    </div>
-                )}
             </div>
         </div>,
         document.body

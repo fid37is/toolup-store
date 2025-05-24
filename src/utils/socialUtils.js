@@ -1,33 +1,53 @@
-// src/utils/socialUtils.js - Utilities for social sharing
-export const generateProductSocialData = (product, router) => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com';
-    const productUrl = `${baseUrl}${router.asPath}`;
+export const generateProductSocialData = (product, router, baseUrl) => {
+    // Handle undefined baseUrl with proper fallback
+    const safeBaseUrl = baseUrl || 
+                        process.env.NEXT_PUBLIC_SITE_URL || 
+                        (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
     
-    // Generate rich description
-    const description = product.description || 
-        `${product.name} - Premium quality ${product.category || 'tool'} available at ToolUp Store. ` +
-        `Starting from ₦${product.price?.toLocaleString() || 'N/A'}. ` +
+    const productUrl = `${safeBaseUrl}${router.asPath}`;
+    
+    // Generate rich description with better formatting
+    const description = product.description ? 
+        `${product.description.slice(0, 100)}...` :
+        `Premium ${product.category || 'tool'} available at ToolUp Store. ` +
+        `${product.price ? `Starting from ₦${product.price.toLocaleString()}. ` : ''}` +
         `${product.quantity > 0 ? 'In stock and ready to ship!' : 'Contact us for availability.'}`;
+
+    // Generate OG image URL with proper encoding
+    const ogParams = new URLSearchParams({
+        title: product.name,
+        price: product.price?.toString() || '',
+        image: product.imageUrl || '',
+        category: product.category || ''
+    });
+    
+    const ogImageUrl = `${safeBaseUrl}/api/og?${ogParams.toString()}`;
 
     return {
         title: `${product.name} | ToolUp Store`,
-        description: description.slice(0, 160), // Optimal length for social platforms
-        imageUrl: product.imageUrl,
+        description: description.slice(0, 160),
+        imageUrl: ogImageUrl,
         url: productUrl,
         type: 'product',
         price: product.price,
-        availability: product.quantity > 0 ? 'in stock' : 'out of stock'
+        currency: 'NGN',
+        availability: product.quantity > 0 ? 'in stock' : 'out of stock',
+        productCategory: product.category,
+        brand: 'ToolUp Store'
     };
 };
 
-export const generateStoreSocialData = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com';
+export const generateStoreSocialData = (baseUrl) => {
+    // Handle undefined baseUrl with proper fallback
+    const safeBaseUrl = baseUrl || 
+                        process.env.NEXT_PUBLIC_SITE_URL || 
+                        (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
     
     return {
-        title: 'ToolUp Store - Premium Tools & Equipment',
-        description: 'Discover premium quality tools and equipment at ToolUp Store. From professional-grade tools to everyday essentials, we have everything you need at competitive prices.',
-        imageUrl: '/og-image-store.jpg', // Create a branded store image
-        url: baseUrl,
+        title: 'ToolUp Store - Premium Gadgets & Phone Acccessories',
+        description: 'Discover premium quality gadgets and phone accessories at ToolUp Store. From professional-grade gadgets to everyday essentials, we have everything you need at competitive prices.',
+        imageUrl: `${safeBaseUrl}/api/og?title=ToolUp Store&category=Premium Tools`,
+        url: safeBaseUrl,
         type: 'website'
     };
 };
