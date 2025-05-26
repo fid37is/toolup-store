@@ -33,6 +33,8 @@ export default function ProductDetail() {
     const isOutOfStock = quantityNum === 0;
     const isLowStock = quantityNum > 0 && quantityNum <= 4;
 
+
+
     // Check authentication status on mount
     useEffect(() => {
         const checkAuth = () => {
@@ -224,8 +226,8 @@ export default function ProductDetail() {
     };
 
     const handleShare = () => {
-        setIsShareModalOpen(true);
-    };
+    setIsShareModalOpen(true);
+};
 
     const closeShareModal = () => {
         setIsShareModalOpen(false);
@@ -402,8 +404,8 @@ export default function ProductDetail() {
                             <button
                                 onClick={handleAddToCart}
                                 className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock || !isAuthenticated
-                                        ? 'cursor-not-allowed bg-gray-400'
-                                        : 'bg-primary-500 hover:bg-primary-700'
+                                    ? 'cursor-not-allowed bg-gray-400'
+                                    : 'bg-primary-500 hover:bg-primary-700'
                                     }`}
                                 disabled={isOutOfStock || !isAuthenticated}
                                 title={!isAuthenticated ? "Login to add items to cart" : ""}
@@ -414,8 +416,8 @@ export default function ProductDetail() {
                             <button
                                 onClick={handleBuyNow}
                                 className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
-                                        ? 'cursor-not-allowed bg-gray-400'
-                                        : 'bg-green-600 hover:bg-green-700'
+                                    ? 'cursor-not-allowed bg-gray-400'
+                                    : 'bg-green-600 hover:bg-green-700'
                                     }`}
                                 disabled={isOutOfStock}
                             >
@@ -437,14 +439,18 @@ export default function ProductDetail() {
                     />
                 )}
 
-                {isShareModalOpen && socialData && (
+                {isShareModalOpen && (
                     <ShareModal
                         isOpen={isShareModalOpen}
                         onClose={closeShareModal}
                         productName={product.name}
-                        shareUrl={socialData.url}
+                        shareUrl={socialData?.url || (typeof window !== 'undefined' ? window.location.href : '')}
                         imageUrl={product.imageUrl}
-                        onCopyLink={() => copyToClipboard(socialData.url)}
+                        product={product} // Make sure this is passed
+                        onCopyLink={() => {
+                            const urlToCopy = socialData?.url || (typeof window !== 'undefined' ? window.location.href : '');
+                            copyToClipboard(urlToCopy);
+                        }}
                     />
                 )}
             </Suspense>
