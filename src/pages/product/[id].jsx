@@ -226,8 +226,8 @@ export default function ProductDetail() {
     };
 
     const handleShare = () => {
-    setIsShareModalOpen(true);
-};
+        setIsShareModalOpen(true);
+    };
 
     const closeShareModal = () => {
         setIsShareModalOpen(false);
@@ -256,10 +256,13 @@ export default function ProductDetail() {
         return (
             <div className="flex min-h-screen flex-col">
                 <SocialHead
-                    title="Product Not Found | ToolUp Store"
-                    description="Sorry, we couldn't find the product you're looking for."
-                    imageUrl="/og-image-store.jpg"
-                    url={`/product/${id}`}
+                    title={product.title}
+                    description={product.description}
+                    imageUrl={product.imageUrl}
+                    url={`/product/${product.slug}`}
+                    type="product"
+                    price={product.price}
+                    productCategory={product.category}
                 />
                 <Header />
                 <div className="container mx-auto my-16 px-4 flex-grow">
