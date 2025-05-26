@@ -14,57 +14,176 @@ export default function ShareModal({
 }) {
     const modalRef = useRef(null);
     const [safeShareUrl, setSafeShareUrl] = useState('');
+    const [finalImageUrl, setFinalImageUrl] = useState('');
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [imageError, setImageError] = useState(false);
+    const [isImageTesting, setIsImageTesting] = useState(false);
+
+    // Use store logo as placeholder for better branding
+    const PLACEHOLDER_IMAGE = '/logo-2.png';
+
+    // Helper function to check if URL is a Google Drive URL
+    const isGoogleDriveUrl = (url) => {
+        return url && (
+            url.includes('drive.google.com') || 
+            url.includes('docs.google.com') ||
+            url.includes('googleapis.com')
+        );
+    };
+
+    // Helper function to convert Google Drive URLs to direct access format
+    const convertGoogleDriveUrl = (url) => {
+        if (!isGoogleDriveUrl(url)) return url;
+        
+        // Extract file ID from various Google Drive URL formats
+        let fileId = null;
+        
+        // Pattern 1: https://drive.google.com/file/d/FILE_ID/view
+        const match1 = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+        if (match1) fileId = match1[1];
+        
+        // Pattern 2: https://drive.google.com/thumbnail?id=FILE_ID
+        const match2 = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+        if (match2) fileId = match2[1];
+        
+        // Pattern 3: https://drive.google.com/open?id=FILE_ID
+        const match3 = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+        if (match3) fileId = match3[1];
+        
+        if (fileId) {
+            // Convert to direct download URL (works better for public files)
+            return `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+        
+        return url;
+    };
+
+    // Helper function to test if an image URL is accessible
+    const testImageUrl = (url) => {
+        return new Promise((resolve) => {
+            if (!url || url === 'undefined' || url.includes('undefined')) {
+                resolve(false);
+                return;
+            }
+
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            
+            // Set a timeout for the test
+            setTimeout(() => resolve(false), 3000);
+            
+            img.src = url;
+        });
+    };
+
+    // Enhanced image URL logic with proper fallbacks and testing
+    useEffect(() => {
+        const setImageUrl = async () => {
+            console.log('ShareModal - Image debug:', {
+                'product?.imageUrl': product?.imageUrl,
+                'imageUrl prop': imageUrl,
+                'product object': product
+            });
+
+            setIsImageTesting(true);
+            setImageLoaded(false);
+            setImageError(false);
+
+            let candidateUrls = [];
+            
+            // Collect all possible image URLs in priority order
+            if (product?.imageUrl && 
+                product.imageUrl !== 'undefined' && 
+                !product.imageUrl.includes('undefined') && 
+                product.imageUrl.trim() !== '') {
+                candidateUrls.push(product.imageUrl);
+            }
+            
+            if (imageUrl && 
+                imageUrl !== 'undefined' && 
+                !imageUrl.includes('undefined') && 
+                imageUrl.trim() !== '') {
+                candidateUrls.push(imageUrl);
+            }
+            
+            if (product?.image && 
+                product.image !== 'undefined' && 
+                !product.image.includes('undefined') && 
+                product.image.trim() !== '') {
+                candidateUrls.push(product.image);
+            }
+
+            // Test each URL and use the first working one
+            for (let url of candidateUrls) {
+                // Convert Google Drive URLs
+                let testUrl = isGoogleDriveUrl(url) ? convertGoogleDriveUrl(url) : url;
+                
+                // Ensure proper URL format
+                if (!testUrl.startsWith('http') && !testUrl.startsWith('/')) {
+                    testUrl = `/${testUrl}`;
+                }
+
+                console.log(`ShareModal - Testing image URL: ${testUrl}`);
+                
+                const isAccessible = await testImageUrl(testUrl);
+                if (isAccessible) {
+                    console.log(`ShareModal - Using working image URL: ${testUrl}`);
+                    setFinalImageUrl(testUrl);
+                    setIsImageTesting(false);
+                    return;
+                }
+            }
+
+            // If no URLs work, use placeholder
+            console.log('ShareModal - No working image found, using placeholder');
+            setFinalImageUrl(PLACEHOLDER_IMAGE);
+            setIsImageTesting(false);
+        };
+
+        if (isOpen) {
+            setImageUrl();
+        }
+    }, [product?.imageUrl, product?.image, imageUrl, isOpen]);
 
     // Generate safe URL with proper fallbacks
-    // Replace the useEffect in ShareModal.jsx that generates the URL
     useEffect(() => {
         if (isOpen) {
             let url = shareUrl;
 
-            // Debug logging
-            console.log('ShareModal - shareUrl:', shareUrl);
-            console.log('ShareModal - product:', product);
-            console.log('ShareModal - window.location:', typeof window !== 'undefined' ? window.location.href : 'undefined');
-
             // If shareUrl is provided and valid, use it
             if (url && url !== 'undefined' && !url.includes('undefined') && url.startsWith('http')) {
                 setSafeShareUrl(url);
-                console.log('ShareModal - using provided shareUrl:', url);
                 return;
             }
 
             // Generate URL if not provided or invalid
             if (typeof window !== 'undefined') {
                 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-                console.log('ShareModal - baseUrl:', baseUrl);
 
                 if (product?.id) {
                     url = `${baseUrl}/products/${product.id}`;
-                    console.log('ShareModal - generated URL from product.id:', url);
+                } else if (product?.slug) {
+                    url = `${baseUrl}/products/${product.slug}`;
                 } else {
                     // Fallback to current page URL, but clean it up
                     const currentUrl = window.location.href;
-                    // Remove any hash or query parameters that might cause issues
                     url = currentUrl.split('#')[0].split('?')[0];
-                    console.log('ShareModal - using cleaned current URL:', url);
                 }
             } else {
                 // Server-side fallback
-                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://your-domain.com';
+                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.toolup.store';
                 url = product?.id ? `${baseUrl}/products/${product.id}` : baseUrl;
             }
 
-            // Final validation - ensure URL doesn't contain 'undefined'
+            // Final validation
             if (url && !url.includes('undefined')) {
                 setSafeShareUrl(url);
-                console.log('ShareModal - final safeShareUrl set to:', url);
             } else {
-                console.error('ShareModal - URL still contains undefined:', url);
-                // Last resort fallback
-                setSafeShareUrl(typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com');
+                setSafeShareUrl(typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
             }
         }
-    }, [isOpen, shareUrl, product?.id]);
+    }, [isOpen, shareUrl, product?.id, product?.slug]);
 
     // Handle click outside to close
     useEffect(() => {
@@ -173,12 +292,10 @@ export default function ShareModal({
                 });
             } catch (error) {
                 if (error.name !== 'AbortError') {
-                    // If native share fails, fallback to copy link
                     handleCopyLink();
                 }
             }
         } else {
-            // If native share not supported, copy link
             handleCopyLink();
         }
     };
@@ -196,7 +313,6 @@ export default function ShareModal({
                 onCopyLink();
             }
         } catch (error) {
-            // Fallback for older browsers
             const textArea = document.createElement('textarea');
             textArea.value = safeShareUrl;
             document.body.appendChild(textArea);
@@ -206,6 +322,23 @@ export default function ShareModal({
             if (onCopyLink) {
                 onCopyLink();
             }
+        }
+    };
+
+    const handleImageLoad = () => {
+        setImageLoaded(true);
+        setImageError(false);
+    };
+
+    const handleImageError = (e) => {
+        console.warn('Image failed to load:', e.target.src);
+        setImageError(true);
+        setImageLoaded(false);
+        
+        // Only set to placeholder if not already using it
+        if (e.target.src !== PLACEHOLDER_IMAGE && !e.target.src.includes('logo-2.png')) {
+            console.log('Switching to placeholder image');
+            setFinalImageUrl(PLACEHOLDER_IMAGE);
         }
     };
 
@@ -227,7 +360,6 @@ export default function ShareModal({
     };
 
     const modalPosition = getModalPosition();
-    const displayImageUrl = product?.imageUrl || imageUrl || '/placeholder-product.jpg';
 
     return createPortal(
         <div
@@ -268,15 +400,34 @@ export default function ShareModal({
                     {/* Preview card */}
                     <div className="bg-gray-50 rounded-lg p-3 border">
                         <div className="flex items-start space-x-3">
-                            <div className="flex-shrink-0">
-                                <img
-                                    src={displayImageUrl}
-                                    alt={productName || 'Product'}
-                                    className="w-12 h-12 object-cover rounded-md"
-                                    onError={(e) => {
-                                        e.target.src = '/placeholder-product.jpg';
-                                    }}
-                                />
+                            <div className="flex-shrink-0 relative">
+                                {/* Image container with better state handling */}
+                                <div className="w-12 h-12 bg-gray-200 rounded-md overflow-hidden flex items-center justify-center">
+                                    {/* Loading state */}
+                                    {isImageTesting && (
+                                        <div className="animate-pulse bg-gray-300 w-full h-full rounded-md"></div>
+                                    )}
+                                    
+                                    {/* Image */}
+                                    {!isImageTesting && finalImageUrl && (
+                                        <img
+                                            src={finalImageUrl}
+                                            alt={productName || 'Product'}
+                                            className={`w-12 h-12 object-cover rounded-md transition-opacity duration-200 ${
+                                                imageLoaded ? 'opacity-100' : 'opacity-0'
+                                            }`}
+                                            onLoad={handleImageLoad}
+                                            onError={handleImageError}
+                                        />
+                                    )}
+                                    
+                                    {/* Fallback icon when no image or still loading */}
+                                    {(!finalImageUrl || (!imageLoaded && !isImageTesting)) && (
+                                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-900 truncate">
@@ -368,7 +519,7 @@ export default function ShareModal({
                         />
                         <button
                             onClick={handleCopyLink}
-                            className="flex-shrink-0 bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 focus:outline-none transition-colors"
+                            className="flex-shrink-0 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none transition-colors"
                         >
                             Copy Link
                         </button>
