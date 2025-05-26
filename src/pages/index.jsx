@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import ImageViewModal from '../components/ImageViewModal';
 import ProductCard from '../components/ProductCard';
 import LoadingScreen from '../components/LoadingScreen';
+import SocialHead from '../components/SocialHead';
 
 export default function Home() {
     const [products, setProducts] = useState([]);

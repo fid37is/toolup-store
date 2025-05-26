@@ -26,14 +26,13 @@ export default function ProductDetail() {
     const [generatedDescription, setGeneratedDescription] = useState('');
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [shareButtonRef, setShareButtonRef] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [socialData, setSocialData] = useState(null);
 
     const quantityNum = Number(product?.quantity || 0);
     const isOutOfStock = quantityNum === 0;
     const isLowStock = quantityNum > 0 && quantityNum <= 4;
-
-
 
     // Check authentication status on mount
     useEffect(() => {
@@ -46,14 +45,42 @@ export default function ProductDetail() {
 
     // Generate social data when product is loaded
     useEffect(() => {
-        if (product && router.asPath) {
-            const data = generateProductSocialData(product, router);
-            setSocialData(data);
+        if (product && router.isReady) {
+            try {
+                // Create a more robust social data object
+                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                               (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
+                
+                const productUrl = `${baseUrl}/products/${id}`;
+                
+                const data = {
+                    title: `${product.name} - ToolUp Store`,
+                    description: generatedDescription || product.description || `${product.name} available at ToolUp Store for ₦${product.price?.toLocaleString()}. Quality tools and equipment for professionals and enthusiasts.`,
+                    imageUrl: product.imageUrl || `${baseUrl}/logo-2.png`,
+                    url: productUrl,
+                    type: 'product',
+                    price: product.price,
+                    availability: isOutOfStock ? 'out_of_stock' : 'in_stock',
+                    productCategory: product.category || 'Tools'
+                };
+                
+                setSocialData(data);
+            } catch (error) {
+                console.error('Error generating social data:', error);
+                // Fallback social data
+                setSocialData({
+                    title: 'ToolUp Store - Quality Tools & Equipment',
+                    description: 'Premium tools and equipment for professionals and enthusiasts',
+                    imageUrl: '/logo-2.png',
+                    url: typeof window !== 'undefined' ? window.location.href : '',
+                    type: 'website'
+                });
+            }
         }
-    }, [product, router.asPath]);
+    }, [product, router.isReady, id, generatedDescription, isOutOfStock]);
 
     useEffect(() => {
-        if (!id) return;
+        if (!id || !router.isReady) return;
 
         const fetchProduct = async () => {
             try {
@@ -85,7 +112,7 @@ export default function ProductDetail() {
         };
 
         fetchProduct();
-    }, [id]);
+    }, [id, router.isReady]);
 
     // Function to generate AI-like description
     const generateProductDescription = (productData) => {
@@ -225,12 +252,23 @@ export default function ProductDetail() {
         router.push(`/auth?redirect=${encodeURIComponent('/checkout?mode=direct')}`);
     };
 
-    const handleShare = () => {
+    const handleShare = (event) => {
+        // Get button position for modal positioning
+        if (event?.currentTarget) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setShareButtonRef({
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+            });
+        }
         setIsShareModalOpen(true);
     };
 
     const closeShareModal = () => {
         setIsShareModalOpen(false);
+        setShareButtonRef(null);
     };
 
     const closeAuthModal = () => {
@@ -248,6 +286,17 @@ export default function ProductDetail() {
             });
     };
 
+    const handleCopyLink = () => {
+        const urlToCopy = socialData?.url || (typeof window !== 'undefined' ? window.location.href : '');
+        copyToClipboard(urlToCopy);
+        closeShareModal();
+    };
+
+    // Don't render anything until router is ready and we have the id
+    if (!router.isReady || !id) {
+        return <LoadingScreen message="Loading..." />;
+    }
+
     if (isLoading) {
         return <LoadingScreen message="Loading product details..." />;
     }
@@ -256,13 +305,11 @@ export default function ProductDetail() {
         return (
             <div className="flex min-h-screen flex-col">
                 <SocialHead
-                    title={product.title}
-                    description={product.description}
-                    imageUrl={product.imageUrl}
-                    url={`/product/${product.slug}`}
-                    type="product"
-                    price={product.price}
-                    productCategory={product.category}
+                    title="Product Not Found - ToolUp Store"
+                    description="The product you're looking for could not be found"
+                    imageUrl="/logo-2.png"
+                    url={typeof window !== 'undefined' ? window.location.href : ''}
+                    type="website"
                 />
                 <Header />
                 <div className="container mx-auto my-16 px-4 flex-grow">
@@ -291,12 +338,13 @@ export default function ProductDetail() {
             {socialData && (
                 <SocialHead
                     title={socialData.title}
-                    description={generatedDescription || socialData.description}
+                    description={socialData.description}
                     imageUrl={socialData.imageUrl}
                     url={socialData.url}
                     type={socialData.type}
                     price={socialData.price}
                     availability={socialData.availability}
+                    productCategory={socialData.productCategory}
                 />
             )}
 
@@ -442,18 +490,19 @@ export default function ProductDetail() {
                     />
                 )}
 
-                {isShareModalOpen && (
+                {isShareModalOpen && product && socialData && (
                     <ShareModal
                         isOpen={isShareModalOpen}
                         onClose={closeShareModal}
                         productName={product.name}
-                        shareUrl={socialData?.url || (typeof window !== 'undefined' ? window.location.href : '')}
+                        shareUrl={socialData.url}
                         imageUrl={product.imageUrl}
-                        product={product} // Make sure this is passed
-                        onCopyLink={() => {
-                            const urlToCopy = socialData?.url || (typeof window !== 'undefined' ? window.location.href : '');
-                            copyToClipboard(urlToCopy);
+                        product={{
+                            ...product,
+                            id: id // Ensure ID is included
                         }}
+                        buttonPosition={shareButtonRef}
+                        onCopyLink={handleCopyLink}
                     />
                 )}
             </Suspense>
