@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from '@vercel/og';
 
@@ -22,11 +23,18 @@ export default async function handler(req) {
 
         const formattedPrice = formatPrice(price);
 
-        // Set proper headers for caching and content type
-        const headers = {
-            'Content-Type': 'image/png',
-            'Cache-Control': 'public, max-age=31536000, immutable',
-        };
+        // Validate image URL if provided
+        let validImage = null;
+        if (image) {
+            try {
+                const imageUrl = new URL(image);
+                if (imageUrl.protocol === 'https:' || imageUrl.protocol === 'http:') {
+                    validImage = image;
+                }
+            } catch (imageError) {
+                // Invalid image URL, use null
+            }
+        }
 
         return new ImageResponse(
             (
@@ -64,7 +72,7 @@ export default async function handler(req) {
                             alignItems: 'center',
                         }}>
                             {/* Product Image */}
-                            {image && (
+                            {validImage && (
                                 <div style={{ 
                                     flex: 1, 
                                     display: 'flex', 
@@ -73,7 +81,7 @@ export default async function handler(req) {
                                     paddingRight: '20px',
                                 }}>
                                     <img
-                                        src={image}
+                                        src={validImage}
                                         alt={title}
                                         style={{
                                             maxWidth: '280px',
@@ -94,7 +102,7 @@ export default async function handler(req) {
                                     display: 'flex',
                                     flexDirection: 'column',
                                     justifyContent: 'center',
-                                    padding: image ? '0 20px 0 0' : '0 40px',
+                                    padding: validImage ? '0 20px 0 0' : '0 40px',
                                 }}
                             >
                                 {category && (
@@ -105,6 +113,7 @@ export default async function handler(req) {
                                             marginBottom: '8px',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.5px',
+                                            display: 'flex',
                                         }}
                                     >
                                         {category}
@@ -113,13 +122,12 @@ export default async function handler(req) {
                                 
                                 <div
                                     style={{
-                                        fontSize: image ? '42px' : '48px',
+                                        fontSize: validImage ? '42px' : '48px',
                                         fontWeight: 'bold',
                                         color: '#111827',
                                         marginBottom: '16px',
                                         lineHeight: 1.1,
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
+                                        display: 'flex',
                                     }}
                                 >
                                     {title}
@@ -128,16 +136,18 @@ export default async function handler(req) {
                                 {formattedPrice && (
                                     <div
                                         style={{
-                                            fontSize: '32px',
+                                            fontSize: '32px',  
                                             fontWeight: 'bold',
                                             color: '#10B981',
                                             marginBottom: '16px',
+                                            display: 'flex',
                                         }}
                                     >
-                                        ₦{formattedPrice}
+                                        NGN {formattedPrice}
                                     </div>
                                 )}
                                 
+                                {/* Store branding */}
                                 <div
                                     style={{
                                         fontSize: '24px',
@@ -145,11 +155,20 @@ export default async function handler(req) {
                                         color: '#2563EB',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '8px',
+                                        gap: '12px',
                                     }}
                                 >
-                                    <span>🛠️</span>
-                                    <span>ToolUp Store</span>
+                                    {/* Replace the URL below with your logo URL */}
+                                    <img
+                                        src="https://www.toolup.store/logo-2.png"
+                                        alt="Logo"
+                                        style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            objectFit: 'contain',
+                                        }}
+                                    />
+                                    <span>Toolup Store</span>
                                 </div>
                             </div>
                         </div>
@@ -159,13 +178,13 @@ export default async function handler(req) {
             {
                 width: 1200,
                 height: 630,
-                headers
             }
         );
+
     } catch (error) {
-        console.error('OG Image generation error:', error);
+        console.error('OG Image Error:', error);
         
-        // Return a simple fallback image with proper headers
+        // Simple fallback without complex styling
         return new ImageResponse(
             (
                 <div
@@ -173,6 +192,7 @@ export default async function handler(req) {
                         width: '100%',
                         height: '100%',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: '#2563EB',
@@ -182,16 +202,23 @@ export default async function handler(req) {
                         fontFamily: 'system-ui, sans-serif',
                     }}
                 >
-                    🛠️ ToolUp Store
+                    <div style={{ display: 'flex', marginBottom: '20px' }}>
+                        <img
+                            src="https://your-domain.com/logo.png"
+                            alt="Logo"
+                            style={{
+                                width: '48px',
+                                height: '48px',
+                                objectFit: 'contain',
+                            }}
+                        />
+                    </div>
+                    <div style={{ display: 'flex' }}>Your Store Name</div>
                 </div>
             ),
             {
                 width: 1200,
                 height: 630,
-                headers: {
-                    'Content-Type': 'image/png',
-                    'Cache-Control': 'public, max-age=31536000, immutable',
-                }
             }
         );
     }
