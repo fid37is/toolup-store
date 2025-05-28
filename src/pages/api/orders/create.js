@@ -2,6 +2,7 @@
 // src/pages/api/orders/create.js - OPTIMIZED VERSION
 import { google } from 'googleapis';
 import { sendOrderConfirmationEmail } from '../../../services/emailService';
+import crypto from 'crypto';
 
 let jwtClient = null;
 let nodemailer = null;
@@ -77,30 +78,55 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-// ASYNC: Notify inventory app about new order
+const generateWebhookSignature = (payload, secret) => {
+    const signature = crypto
+        .createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex');
+
+    return `sha256=${signature}`;
+};
+
+// FIXED: Notify inventory app about new order
 const notifyInventoryApp = async (orderData) => {
     try {
         const inventoryWebhookUrl = process.env.INVENTORY_WEBHOOK_URL || 'http://localhost:3001/api/orders/receive-webhook';
-        
+        const webhookSecret = process.env.WEBHOOK_SECRET || 'your-webhook-secret';
+
+        // FIXED: Create proper webhook payload format
+        const webhookPayload = {
+            event: 'new_order', // Changed from 'type' to 'event'
+            data: orderData,     // This contains your order data
+            timestamp: new Date().toISOString()
+        };
+
+        const payloadString = JSON.stringify(webhookPayload);
+        const signature = generateWebhookSignature(payloadString, webhookSecret);
+
+        console.log('Sending webhook to:', inventoryWebhookUrl);
+        console.log('Webhook payload:', webhookPayload);
+
         const response = await fetch(inventoryWebhookUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.WEBHOOK_SECRET || 'your-webhook-secret'}`
+                'X-Webhook-Signature': signature, // FIXED: Proper header name
+                'User-Agent': 'StoreFont-Webhook/1.0'
             },
-            body: JSON.stringify({
-                type: 'order_created',
-                data: orderData
-            })
+            body: payloadString,
+            timeout: 10000
         });
 
         if (!response.ok) {
-            console.error('Failed to notify inventory app:', response.statusText);
+            const errorText = await response.text();
+            console.error('Failed to notify inventory app:', response.status, errorText);
             return false;
         }
 
-        console.log('Successfully notified inventory app about new order:', orderData.orderId);
+        const result = await response.json();
+        console.log('Successfully notified inventory app:', result);
         return true;
+
     } catch (error) {
         console.error('Error notifying inventory app:', error);
         return false;
@@ -111,10 +137,10 @@ const notifyInventoryApp = async (orderData) => {
 const sendGuestOrderEmailFallback = async (orderData) => {
     try {
         const transporter = await createEmailTransporter();
-        
+
         const { customer, items, totalAmount, shippingFee, orderId, paymentMethod } = orderData;
         const subtotal = totalAmount - shippingFee;
-        
+
         const itemsHtml = items.map(item => `
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.name}</td>
@@ -224,18 +250,18 @@ const processOrderToSheets = async (orderData, itemsData) => {
                 spreadsheetId: sheetId,
                 range: 'Orders!1:1',
             });
-            
+
             if (headersResponse.data.values && headersResponse.data.values.length > 0) {
                 orderHeaders = headersResponse.data.values[0];
             } else {
                 orderHeaders = [
-                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee', 
+                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee',
                     'paymentMethod', 'currency', 'isAuthenticated', 'isGuestCheckout',
-                    'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone', 
+                    'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone',
                     'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo',
                     'createdAt', 'updatedAt'
                 ];
-                
+
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: sheetId,
                     range: 'Orders!A1',
@@ -259,15 +285,15 @@ const processOrderToSheets = async (orderData, itemsData) => {
                         }]
                     }
                 });
-                
+
                 orderHeaders = [
-                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee', 
+                    'orderId', 'userId', 'orderDate', 'status', 'totalAmount', 'shippingFee',
                     'paymentMethod', 'currency', 'isAuthenticated', 'isGuestCheckout',
-                    'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone', 
+                    'customerFirstName', 'customerLastName', 'customerEmail', 'customerPhone',
                     'shippingAddress', 'city', 'state', 'lga', 'town', 'zip', 'additionalInfo',
                     'createdAt', 'updatedAt'
                 ];
-                
+
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: sheetId,
                     range: 'Orders!A1',
@@ -388,12 +414,12 @@ const processOrderToSheets = async (orderData, itemsData) => {
                 spreadsheetId: sheetId,
                 range: 'OrderItems!1:1',
             });
-            
+
             if (itemsHeaderResponse.data.values && itemsHeaderResponse.data.values.length > 0) {
                 itemHeaders = itemsHeaderResponse.data.values[0];
             } else {
                 itemHeaders = ['orderId', 'productId', 'productName', 'quantity', 'price', 'imageUrl'];
-                
+
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: sheetId,
                     range: 'OrderItems!A1',
@@ -417,9 +443,9 @@ const processOrderToSheets = async (orderData, itemsData) => {
                         }]
                     }
                 });
-                
+
                 itemHeaders = ['orderId', 'productId', 'productName', 'quantity', 'price', 'imageUrl'];
-                
+
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: sheetId,
                     range: 'OrderItems!A1',
@@ -438,7 +464,7 @@ const processOrderToSheets = async (orderData, itemsData) => {
         // Prepare and insert order items
         const itemRows = itemsData.map(item => {
             const row = Array(itemHeaders.length).fill('');
-            
+
             itemHeaders.forEach((header, index) => {
                 const lowerHeader = header.toLowerCase();
                 switch (lowerHeader) {
@@ -466,7 +492,7 @@ const processOrderToSheets = async (orderData, itemsData) => {
                         break;
                 }
             });
-            
+
             return row;
         });
 
@@ -496,7 +522,7 @@ const processEmailConfirmation = async (orderDetails, sendGuestEmail) => {
 
     try {
         const emailResult = await sendOrderConfirmationEmail(orderDetails);
-        
+
         if (emailResult && emailResult.success) {
             console.log('Order confirmation email sent successfully via email service');
             emailSent = true;
@@ -517,7 +543,7 @@ const processEmailConfirmation = async (orderDetails, sendGuestEmail) => {
     } catch (emailServiceError) {
         console.error('Email service error:', emailServiceError);
         emailError = emailServiceError.message;
-        
+
         if (sendGuestEmail !== false) {
             console.log('Attempting fallback email method');
             emailSent = await sendGuestOrderEmailFallback({

@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 import { WEBHOOK_CONFIG } from '../../../lib/websocket-config';
 
-// Function to create webhook signature
-const createSignature = (payload, secret) => {
+// FIXED: Create signature from the exact string that will be sent
+const createSignature = (payloadString, secret) => {
     return crypto
         .createHmac('sha256', secret)
-        .update(JSON.stringify(payload))
+        .update(payloadString, 'utf8')  // Use the exact string being sent
         .digest('hex');
 };
 
@@ -18,7 +18,14 @@ export const sendOrderWebhook = async (orderData) => {
             data: orderData
         };
 
-        const signature = createSignature(payload, WEBHOOK_CONFIG.WEBHOOK_SECRET);
+        // FIXED: Convert to string first, then create signature from that exact string
+        const payloadString = JSON.stringify(payload);
+        const signature = createSignature(payloadString, WEBHOOK_CONFIG.WEBHOOK_SECRET);
+
+        console.log('=== WEBHOOK DEBUG ===');
+        console.log('Payload string length:', payloadString.length);
+        console.log('Secret length:', WEBHOOK_CONFIG.WEBHOOK_SECRET?.length);
+        console.log('Generated signature:', signature);
 
         const response = await fetch(WEBHOOK_CONFIG.INVENTORY_WEBHOOK_URL, {
             method: 'POST',
@@ -27,8 +34,8 @@ export const sendOrderWebhook = async (orderData) => {
                 'X-Webhook-Signature': `sha256=${signature}`,
                 'User-Agent': 'StoreFront-Webhook/1.0'
             },
-            body: JSON.stringify(payload),
-            timeout: 10000 // 10 second timeout
+            body: payloadString,  // Send the same string used for signature
+            timeout: 10000
         });
 
         if (!response.ok) {
