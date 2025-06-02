@@ -11,6 +11,20 @@ const serviceAccountAuth = new JWT({
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
+// Safe JSON parse helper function
+function safeJsonParse(jsonString, fallback = null) {
+    if (!jsonString || typeof jsonString !== 'string') {
+        return fallback;
+    }
+    
+    try {
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.warn('Failed to parse JSON:', jsonString, error.message);
+        return fallback;
+    }
+}
+
 // Fetch user payment methods from Google Sheets or payment provider
 async function getUserPaymentMethods(userId) {
     try {
@@ -129,21 +143,31 @@ async function getUserOrders(userId) {
                 .map(itemRow => ({
                     productId: itemRow.get('productId'),
                     name: itemRow.get('productName'),
-                    quantity: parseInt(itemRow.get('quantity')),
-                    price: parseFloat(itemRow.get('price')),
-                    total: parseFloat(itemRow.get('total'))
+                    quantity: parseInt(itemRow.get('quantity')) || 0,
+                    price: parseFloat(itemRow.get('price')) || 0,
+                    total: parseFloat(itemRow.get('total')) || 0
                 }));
+
+            // Safe parsing for shipping address
+            const shippingAddressRaw = row.get('shippingAddress');
+            const shippingAddress = safeJsonParse(shippingAddressRaw, {
+                street: '',
+                city: '',
+                state: '',
+                zipCode: '',
+                country: ''
+            });
 
             return {
                 id: orderId,
-                customerName: row.get('customerName'),
-                customerEmail: row.get('customerEmail'),
-                customerPhone: row.get('customerPhone'),
-                shippingAddress: row.get('shippingAddress') ? JSON.parse(row.get('shippingAddress')) : null,
-                total: parseFloat(row.get('total')),
-                status: row.get('status'),
-                createdAt: row.get('createdAt'),
-                updatedAt: row.get('updatedAt'),
+                customerName: row.get('customerName') || '',
+                customerEmail: row.get('customerEmail') || '',
+                customerPhone: row.get('customerPhone') || '',
+                shippingAddress: shippingAddress,
+                total: parseFloat(row.get('total')) || 0,
+                status: row.get('status') || 'pending',
+                createdAt: row.get('createdAt') || new Date().toISOString(),
+                updatedAt: row.get('updatedAt') || new Date().toISOString(),
                 items: orderItems
             };
         });
