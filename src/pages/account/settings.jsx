@@ -29,9 +29,6 @@ const AccountSettingsPage = () => {
                                 <h1 className="text-4xl font-bold text-gray-800 mb-2">
                                     Settings
                                 </h1>
-                                <div className="flex items-center justify-center">
-                                    <div className="h-1 w-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"></div>
-                                </div>
                             </div>
                             
                             <div className="w-20"></div> {/* Spacer for centering */}

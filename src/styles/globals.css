@@ -15,6 +15,18 @@
     .btn-accent {
         @apply bg-accent-500 hover:bg-accent-600 text-primary-700 font-medium px-4 py-2 rounded transition-colors;
     }
+
+    .input-accent {
+        @apply border border-gray-300 rounded px-3 py-2;
+        outline: none !important;
+    }
+    
+    .input-accent:focus {
+        @apply ring-2 ring-accent-400 border-accent-500;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgb(255 204 102) !important; /* Your accent-400 color */
+    }
+    
 }
 
 @layer utilities {
@@ -49,4 +61,66 @@
     .animate-wave {
         animation: wave 1s ease-in-out infinite;
     }
+    .select-accent {
+        @apply border border-gray-300 rounded px-3 py-2 bg-white;
+        outline: none !important;
+    }
+    
+    .select-accent:focus {
+        @apply ring-2 ring-accent-400 border-accent-500;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgb(255 204 102) !important;
+    }
+    
+    .select-primary {
+        @apply border border-gray-300 rounded px-3 py-2 bg-white;
+        outline: none !important;
+    }
+    
+    .select-primary:focus {
+        @apply ring-2 ring-primary-400 border-primary-500;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgb(0 64 153) !important; /* Your primary-400 */
+    }
+}
+
+@layer base {
+    input:focus {
+        outline: none !important;
+    }
+    /* Radio buttons */
+    input[type="radio"] {
+        accent-color: #ffbb33; /* Your accent-500 */
+    }
+    
+    input[type="radio"]:hover {
+        accent-color: #F4B400; /* Your accent-600 for darker hover */
+    }
+    input[type="checkbox"] {
+        accent-color: #ffbb33; /* Your accent-500 */
+    }
+    
+    input[type="checkbox"]:hover {
+        accent-color: #F4B400; /* Your accent-600 */
+    }
+    
+    /* Select dropdown options hover */
+    select option:hover,
+    select option:focus,
+    select option:checked:hover {
+        background-color: #ffcc66 !important; /* Your accent-400 */
+        color: #003380 !important; /* Your primary-500 for contrast */
+    }
+    
+    select option:checked {
+        background-color: #ffbb33 !important; /* Your accent-500 */
+        color: white !important;
+    }
+    
+    /* For browsers that support it - option highlighting */
+    select option::selection {
+        background-color: white; /* Your accent-400 */
+        color: #ffbb33; /* Your primary-500 */
+    }
+    
 }

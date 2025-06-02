@@ -6,6 +6,7 @@ import Footer from '../../components/Footer';
 import { notifyEvent } from '../../components/Notification';
 import useAuthCheck from '../../hooks/useAuthCheck';
 import LoadingScreen from '../../components/LoadingScreen';
+import { generatePDFReceipt as createPDFReceipt } from '../../utils/pdfReceiptGenerator';
 
 const OrdersPage = () => {
     const router = useRouter();
@@ -14,6 +15,7 @@ const OrdersPage = () => {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(null);
     const [downloadingReceipt, setDownloadingReceipt] = useState(null);
+    const [expandedOrders, setExpandedOrders] = useState(new Set());
 
     useEffect(() => {
         const handleAuth = async () => {
@@ -78,91 +80,43 @@ const OrdersPage = () => {
         handleAuth();
     }, [isAuthenticated, user, authLoading, router]);
 
-    const generatePDFReceipt = async (order) => {
-        setDownloadingReceipt(order.orderId);
-        
-        try {
-            const receiptContent = `
-                <html>
-                <head>
-                    <title>Order Receipt #${order.orderId}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
-                        .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-                        .order-info { margin-bottom: 30px; }
-                        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                        .items-table th, .items-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-                        .items-table th { background-color: #f5f5f5; font-weight: bold; }
-                        .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }
-                        .footer { margin-top: 40px; text-align: center; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>Order Receipt</h1>
-                        <h2>Order #${order.orderId}</h2>
-                    </div>
-                    
-                    <div class="order-info">
-                        <p><strong>Order Date:</strong> ${new Date(order.date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                        })}</p>
-                        <p><strong>Status:</strong> ${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending'}</p>
-                        <p><strong>Customer:</strong> ${user.name || user.email}</p>
-                    </div>
-                    
-                    <table class="items-table">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Quantity</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${order.items?.map(item => `
-                                <tr>
-                                    <td>${item.name}</td>
-                                    <td>${item.quantity}</td>
-                                    <td>₦${Number(item.price).toLocaleString()}</td>
-                                    <td>₦${Number(item.price * item.quantity).toLocaleString()}</td>
-                                </tr>
-                            `).join('') || '<tr><td colspan="4">No items available</td></tr>'}
-                        </tbody>
-                    </table>
-                    
-                    <div class="total">
-                        <p>Total Amount: ₦${Number(order.total).toLocaleString()}</p>
-                    </div>
-                    
-                    <div class="footer">
-                        <p>Thank you for your business!</p>
-                        <p>Generated on ${new Date().toLocaleDateString()}</p>
-                    </div>
-                </body>
-                </html>
-            `;
-
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(receiptContent);
-            printWindow.document.close();
-            
-            printWindow.onload = () => {
-                printWindow.print();
-                printWindow.close();
-            };
-            
-            notifyEvent('Receipt generated successfully!', 'success');
-        } catch (error) {
-            console.error('Error generating receipt:', error);
-            notifyEvent('Failed to generate receipt. Please try again.', 'error');
-        } finally {
-            setDownloadingReceipt(null);
-        }
+    const toggleOrderExpansion = (orderId) => {
+        setExpandedOrders(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(orderId)) {
+                newSet.delete(orderId);
+            } else {
+                newSet.add(orderId);
+            }
+            return newSet;
+        });
     };
+
+    const generatePDFReceipt = async (order) => {
+    setDownloadingReceipt(order.orderId);
+    
+    try {
+        // Try to generate PDF first
+        await createPDFReceipt(order, user, '/logo-2.png');
+        notifyEvent('PDF receipt downloaded successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Error generating PDF receipt:', error);
+        
+        // Fallback to HTML download if PDF generation fails
+        console.log('Falling back to HTML receipt...');
+        try {
+            generateHTMLReceipt(order, user);
+            notifyEvent('Receipt downloaded as HTML (PDF generation failed)', 'warning');
+        } catch (htmlError) {
+            console.error('Error generating HTML receipt:', htmlError);
+            notifyEvent('Failed to generate receipt. Please try again.', 'error');
+        }
+        
+    } finally {
+        setDownloadingReceipt(null);
+    }
+};
 
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
@@ -203,7 +157,7 @@ const OrdersPage = () => {
                         <div className="flex items-center justify-between mb-4">
                             <button
                                 onClick={() => router.back()}
-                                className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-3 py-2 rounded-lg shadow-sm hover:shadow-md border border-gray-200 text-sm"
+                                className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-3 py-4 rounded mb-6 shadow-sm hover:shadow-md border border-gray-200 text-sm"
                             >
                                 <span className="mr-1 text-lg">←</span> Back
                             </button>
@@ -228,7 +182,7 @@ const OrdersPage = () => {
                         <div className="justify-self-start">
                             <button
                                 onClick={() => router.back()}
-                                className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md border border-gray-200"
+                                className="flex items-center text-primary-700 hover:text-primary-500 transition-all duration-200 font-medium bg-white px-4 py-2 rounded shadow-sm hover:shadow-md border border-gray-200"
                             >
                                 <span className="mr-2 text-lg">←</span> Back
                             </button>
@@ -238,9 +192,6 @@ const OrdersPage = () => {
                             <h1 className="text-4xl font-bold text-gray-800 mb-2">
                                 My Orders
                             </h1>
-                            <div className="flex items-center justify-center">
-                                <div className="h-1 w-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"></div>
-                            </div>
                         </div>
 
                         <div className="justify-self-end">
@@ -257,7 +208,7 @@ const OrdersPage = () => {
 
                 {/* Content Section */}
                 {fetchError ? (
-                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                    <div className="bg-white rounded-lg shadow-md p-8 mb-6 text-center">
                         <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -273,7 +224,7 @@ const OrdersPage = () => {
                         </button>
                     </div>
                 ) : orders.length === 0 ? (
-                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                    <div className="bg-white rounded-lg shadow-md p-8 mb-8 text-center">
                         <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -290,110 +241,173 @@ const OrdersPage = () => {
                     </div>
                 ) : (
                     <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                        <ul className="divide-y divide-gray-200">
+                        <div className="divide-y-8 divide-gray-100">
                             {orders.map((order, index) => (
-                                <li key={order.orderId} className="p-4">
-                                    {/* Mobile-optimized Order Layout */}
-                                    <div className="space-y-4">
-                                        {/* Order Header - Mobile Stacked, Desktop Side-by-side */}
-                                        <div className="flex flex-col md:flex-row md:items-start md:justify-between">
-                                            <div className="flex-grow">
-                                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                    <h3 className="text-lg font-medium text-gray-800">
-                                                        Order #{order.orderId}
-                                                    </h3>
+                                <div key={order.orderId}>
+                                    {/* Compact Order Row */}
+                                    <div 
+                                        onClick={() => toggleOrderExpansion(order.orderId)}
+                                        className="p-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            {/* Left side - Order info in one line */}
+                                            <div className="flex items-center space-x-4 flex-grow min-w-0">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="font-medium text-gray-800">
+                                                        #{order.orderId}
+                                                    </span>
                                                     {index === 0 && (
                                                         <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
                                                             Latest
                                                         </span>
                                                     )}
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                                                        {order.status
-                                                            ? order.status.charAt(0).toUpperCase() + order.status.slice(1)
-                                                            : 'Pending'}
-                                                    </span>
                                                 </div>
-
-                                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-2">
-                                                    <span>
-                                                        {new Date(order.date).toLocaleDateString('en-US', {
-                                                            year: 'numeric',
-                                                            month: 'short',
-                                                            day: 'numeric',
-                                                        })}
-                                                    </span>
-                                                    <span>
-                                                        {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="text-left md:text-right md:ml-4 mt-2 md:mt-0">
-                                                <span className="font-medium text-gray-800 text-lg">
-                                                    ₦{Number(order.total).toLocaleString()}
+                                                
+                                                <span className="text-sm text-gray-600 hidden sm:inline">
+                                                    {new Date(order.date).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        year: 'numeric',
+                                                    })}
+                                                </span>
+                                                
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                                                    {order.status
+                                                        ? order.status.charAt(0).toUpperCase() + order.status.slice(1)
+                                                        : 'Pending'}
+                                                </span>
+                                                
+                                                <span className="text-sm text-gray-600 hidden md:inline">
+                                                    {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
                                                 </span>
                                             </div>
+
+                                            {/* Right side - Total and arrow */}
+                                            <div className="flex items-center space-x-4">
+                                                <span className="font-medium text-gray-800">
+                                                    ₦{Number(order.total).toLocaleString()}
+                                                </span>
+                                                <svg 
+                                                    xmlns="http://www.w3.org/2000/svg" 
+                                                    className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
+                                                        expandedOrders.has(order.orderId) ? 'rotate-180' : ''
+                                                    }`}
+                                                    fill="none" 
+                                                    viewBox="0 0 24 24" 
+                                                    stroke="currentColor"
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
                                         </div>
 
-                                        {/* Order Items Preview */}
-                                        {order.items && order.items.length > 0 && (
-                                            <div className="p-3 bg-gray-50 rounded-lg">
-                                                <div className="space-y-2">
-                                                    {order.items.slice(0, 2).map((item, idx) => (
-                                                        <div key={idx} className="flex justify-between items-center text-sm">
-                                                            <span className="text-gray-700">
-                                                                {item.name} × {item.quantity}
-                                                            </span>
-                                                            <span className="text-gray-600">
-                                                                ₦{Number(item.price * item.quantity).toLocaleString()}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                    {order.items.length > 2 && (
-                                                        <div className="text-center text-xs text-gray-500 pt-1">
-                                                            +{order.items.length - 2} more item{order.items.length - 2 !== 1 ? 's' : ''}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Action Buttons - Mobile Stacked, Desktop Horizontal */}
-                                        <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
-                                            <button
-                                                onClick={() => generatePDFReceipt(order)}
-                                                disabled={downloadingReceipt === order.orderId}
-                                                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 w-full sm:w-auto"
-                                            >
-                                                {downloadingReceipt === order.orderId ? (
-                                                    <>
-                                                        <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full mr-2"></div>
-                                                        Downloading...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                                                        </svg>
-                                                        Receipt
-                                                    </>
-                                                )}
-                                            </button>
-
-                                            <button
-                                                onClick={() => router.push(`/account/orders/${order.orderId}`)}
-                                                className="px-4 py-2 rounded flex items-center justify-center bg-primary-500 text-white hover:bg-primary-700 w-full sm:w-auto"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                </svg>
-                                            </button>
+                                        {/* Mobile date display */}
+                                        <div className="mt-1 sm:hidden">
+                                            <span className="text-xs text-gray-500">
+                                                {new Date(order.date).toLocaleDateString('en-US', {
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    year: 'numeric',
+                                                })} • {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
+                                            </span>
                                         </div>
                                     </div>
-                                </li>
+
+                                    {/* Expanded Order Details */}
+                                    {expandedOrders.has(order.orderId) && (
+                                        <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100">
+                                            <div className="space-y-4 pt-4">
+                                                {/* Order Details */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-800 mb-2">Order Information</h4>
+                                                        <div className="space-y-1 text-sm text-gray-600">
+                                                            <div>
+                                                                <span className="font-medium">Order Date:</span> {new Date(order.date).toLocaleDateString('en-US', {
+                                                                    year: 'numeric',
+                                                                    month: 'long',
+                                                                    day: 'numeric',
+                                                                })}
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-medium">Status:</span> {order.status
+                                                                    ? order.status.charAt(0).toUpperCase() + order.status.slice(1)
+                                                                    : 'Pending'}
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-medium">Customer:</span> {user.name || user.email}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-800 mb-2">Order Summary</h4>
+                                                        <div className="space-y-1 text-sm text-gray-600">
+                                                            <div>
+                                                                <span className="font-medium">Items:</span> {order.items?.length || 0}
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-medium">Total Amount:</span> ₦{Number(order.total).toLocaleString()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Order Items */}
+                                                {order.items && order.items.length > 0 && (
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-800 mb-3">Items Ordered</h4>
+                                                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                                            <div className="divide-y divide-gray-200">
+                                                                {order.items.map((item, idx) => (
+                                                                    <div key={idx} className="p-3 flex justify-between items-center">
+                                                                        <div className="flex-grow">
+                                                                            <div className="font-medium text-gray-800">{item.name}</div>
+                                                                            <div className="text-sm text-gray-600">
+                                                                                Quantity: {item.quantity} × ₦{Number(item.price).toLocaleString()}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="font-medium text-gray-800">
+                                                                            ₦{Number(item.price * item.quantity).toLocaleString()}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Action Buttons */}
+                                                <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            generatePDFReceipt(order);
+                                                        }}
+                                                        disabled={downloadingReceipt === order.orderId}
+                                                        className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 w-full sm:w-auto"
+                                                    >
+                                                        {downloadingReceipt === order.orderId ? (
+                                                            <>
+                                                                <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full mr-2"></div>
+                                                                Downloading...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                                                                </svg>
+                                                                Receipt
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             ))}
-                        </ul>
+                        </div>
                     </div>
                 )}
             </main>
