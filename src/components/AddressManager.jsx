@@ -3,7 +3,7 @@ import { getStates, getLGAs } from '../utils/locationService';
 import { getUserAddresses, addUserAddress, updateUserAddress, deleteUserAddress, setDefaultAddress } from '../services/addressService';
 import { MapPin, Plus, Edit, Trash2, Check, X, Loader2 } from 'lucide-react';
 
-const AddressManager = ({ 
+const AddressManager = ({
     mode = 'settings', // 'settings' or 'checkout'
     onAddressSelect, // callback for checkout mode
     formData, // for checkout mode
@@ -59,11 +59,17 @@ const AddressManager = ({
     }, [formData?.state, mode]);
 
     // Update shipping fee when state changes in checkout
+    // Update shipping fee when state changes in checkout
     useEffect(() => {
         if (mode === 'checkout' && formData?.state && paymentMethod !== 'pay_on_pickup') {
             const fee = calculateShippingFee(formData.state);
-            setShippingFee(fee);
-            if (setBaseShippingFee) {
+
+            // Add safety checks before calling the functions
+            if (typeof setShippingFee === 'function') {
+                setShippingFee(fee);
+            }
+
+            if (typeof setBaseShippingFee === 'function') {
                 setBaseShippingFee(fee);
             }
         }
@@ -177,15 +183,15 @@ const AddressManager = ({
             } else {
                 await addUserAddress(newAddressForm);
             }
-            
+
             setIsAddingNew(false);
             setIsEditing(null);
             setNewAddressForm({
-                addressName: '', address: '', state: '', lga: '', city: '', 
+                addressName: '', address: '', state: '', lga: '', city: '',
                 town: '', landmark: '', zip: '', additionalInfo: '', isDefault: false
             });
             setErrors({});
-            
+
             loadAddresses();
         } catch (error) {
             console.error('Error saving address:', error);
@@ -252,7 +258,7 @@ const AddressManager = ({
         setIsAddingNew(false);
         setIsEditing(null);
         setNewAddressForm({
-            addressName: '', address: '', state: '', lga: '', city: '', 
+            addressName: '', address: '', state: '', lga: '', city: '',
             town: '', landmark: '', zip: '', additionalInfo: '', isDefault: false
         });
         setErrors({});
@@ -271,9 +277,8 @@ const AddressManager = ({
                     value={newAddressForm[name]}
                     onChange={handleNewAddressChange}
                     rows={3}
-                    className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${
-                        errors[name] ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${errors[name] ? 'border-red-500' : 'border-gray-300'
+                        }`}
                 />
             ) : (
                 <input
@@ -282,9 +287,8 @@ const AddressManager = ({
                     placeholder={placeholder}
                     value={newAddressForm[name]}
                     onChange={handleNewAddressChange}
-                    className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${
-                        errors[name] ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${errors[name] ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     required={required}
                 />
             )}
@@ -305,9 +309,8 @@ const AddressManager = ({
                 value={newAddressForm[name]}
                 onChange={handleNewAddressChange}
                 disabled={disabled || loading}
-                className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${
-                    errors[name] ? 'border-red-500' : 'border-gray-300'
-                } ${disabled ? 'bg-gray-100' : ''}`}
+                className={`w-full px-3 py-2 border rounded focus:ring-1 focus:ring-primary-500 focus:border-transparent ${errors[name] ? 'border-red-500' : 'border-gray-300'
+                    } ${disabled ? 'bg-gray-100' : ''}`}
                 required={required}
             >
                 <option value="">
@@ -358,7 +361,7 @@ const AddressManager = ({
                             <h3 className="text-lg font-medium text-gray-900 mb-4">
                                 {isEditing ? 'Edit Address' : 'Add New Address'}
                             </h3>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {renderInput('addressName', 'Address Name', 'Home, Work, etc.', true)}
                                 {renderInput('address', 'Street Address', 'House number, street name', true)}
@@ -443,7 +446,7 @@ const AddressManager = ({
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <div className="text-sm text-gray-600 space-y-1 mb-3">
                                     <p className="break-words">{address.address}</p>
                                     <p>{address.city}, {address.lga}</p>
@@ -498,13 +501,12 @@ const AddressManager = ({
                         <h3 className="text-sm font-medium text-gray-700 mb-3">Choose from saved addresses</h3>
                         <div className="space-y-3">
                             {addresses.map(address => (
-                                <div 
+                                <div
                                     key={address.id}
-                                    className={`border rounded p-4 cursor-pointer transition-all ${
-                                        selectedAddressId === address.id 
-                                            ? 'border-accent-500 bg-blue-50 shadow-sm' 
+                                    className={`border rounded p-4 cursor-pointer transition-all ${selectedAddressId === address.id
+                                            ? 'border-accent-500 bg-blue-50 shadow-sm'
                                             : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                                    }`}
+                                        }`}
                                     onClick={() => handleSelectAddress(address)}
                                 >
                                     <div className="flex items-start justify-between gap-3">
@@ -517,11 +519,11 @@ const AddressManager = ({
                                                     </span>
                                                 )}
                                             </div>
-                                            
+
                                             {/* Full Address Display */}
                                             <div className="text-sm text-gray-600 space-y-1">
                                                 <p className="leading-relaxed">{address.address}</p>
-                                                
+
                                                 <div className="flex flex-wrap gap-1">
                                                     <span>{address.city}</span>
                                                     <span>•</span>
@@ -535,19 +537,19 @@ const AddressManager = ({
                                                         </>
                                                     )}
                                                 </div>
-                                                
+
                                                 {address.town && (
                                                     <p className="text-gray-500">
                                                         <span className="font-medium">Area:</span> {address.town}
                                                     </p>
                                                 )}
-                                                
+
                                                 {address.landmark && (
                                                     <p className="text-gray-500">
                                                         <span className="font-medium">Near:</span> {address.landmark}
                                                     </p>
                                                 )}
-                                                
+
                                                 {address.additionalInfo && (
                                                     <p className="text-gray-500 italic">
                                                         <span className="font-medium">Note:</span> {address.additionalInfo}
@@ -555,7 +557,7 @@ const AddressManager = ({
                                                 )}
                                             </div>
                                         </div>
-                                        
+
                                         {/* Selection Indicator */}
                                         <div className="flex-shrink-0 mt-1">
                                             {selectedAddressId === address.id ? (

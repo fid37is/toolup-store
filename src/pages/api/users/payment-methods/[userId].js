@@ -11,17 +11,52 @@ const serviceAccountAuth = new JWT({
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-// Safe JSON parse helper function
+// Enhanced safe JSON parse helper function
 function safeJsonParse(jsonString, fallback = null) {
     if (!jsonString || typeof jsonString !== 'string') {
         return fallback;
     }
     
-    try {
-        return JSON.parse(jsonString);
-    } catch (error) {
-        console.warn('Failed to parse JSON:', jsonString, error.message);
+    // Trim whitespace
+    const trimmed = jsonString.trim();
+    
+    // Check if it looks like JSON (starts with { or [)
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        // If it's a plain string, treat it as a simple address
+        if (fallback && typeof fallback === 'object' && fallback.street !== undefined) {
+            return {
+                ...fallback,
+                street: trimmed
+            };
+        }
         return fallback;
+    }
+    
+    try {
+        return JSON.parse(trimmed);
+    } catch (error) {
+        console.warn('Failed to parse JSON:', trimmed, error.message);
+        
+        // If fallback is an address object and we have a string, put it in street
+        if (fallback && typeof fallback === 'object' && fallback.street !== undefined) {
+            return {
+                ...fallback,
+                street: trimmed
+            };
+        }
+        
+        return fallback;
+    }
+}
+
+// Helper function to safely get and validate row data
+function safeGetRowValue(row, columnName, defaultValue = '') {
+    try {
+        const value = row.get(columnName);
+        return value !== null && value !== undefined ? String(value).trim() : defaultValue;
+    } catch (error) {
+        console.warn(`Error getting column ${columnName}:`, error.message);
+        return defaultValue;
     }
 }
 
@@ -46,7 +81,8 @@ async function getUserPaymentMethods(userId) {
         // Fetch payment methods for this specific user
         const paymentRows = await paymentMethodsSheet.getRows();
         const userPaymentMethods = paymentRows.filter(row =>
-            row.get('userId') === userId || row.get('customerEmail') === userId
+            safeGetRowValue(row, 'userId') === userId || 
+            safeGetRowValue(row, 'customerEmail') === userId
         );
 
         const savedCards = [];
@@ -55,30 +91,31 @@ async function getUserPaymentMethods(userId) {
         let defaultMethodType = null;
 
         userPaymentMethods.forEach(row => {
-            const methodId = row.get('id');
-            const isDefault = row.get('isDefault') === 'true' || row.get('isDefault') === true;
+            const methodId = safeGetRowValue(row, 'id');
+            const isDefaultValue = safeGetRowValue(row, 'isDefault', 'false');
+            const isDefault = isDefaultValue === 'true' || isDefaultValue === true;
 
             // Build saved card object
             const savedCard = {
                 id: methodId,
-                cardType: row.get('cardType') || 'Unknown',
-                cardNumber: row.get('maskedCardNumber') || '****0000',
-                expiryMonth: row.get('expiryMonth') || '',
-                expiryYear: row.get('expiryYear') || '',
-                holderName: row.get('holderName') || '',
+                cardType: safeGetRowValue(row, 'cardType', 'Unknown'),
+                cardNumber: safeGetRowValue(row, 'maskedCardNumber', '****0000'),
+                expiryMonth: safeGetRowValue(row, 'expiryMonth'),
+                expiryYear: safeGetRowValue(row, 'expiryYear'),
+                holderName: safeGetRowValue(row, 'holderName'),
                 isDefault: isDefault,
-                createdAt: row.get('createdAt') || new Date().toISOString()
+                createdAt: safeGetRowValue(row, 'createdAt', new Date().toISOString())
             };
 
             // Build payment method object
             const paymentMethod = {
                 id: methodId,
-                type: row.get('type') || 'card',
+                type: safeGetRowValue(row, 'type', 'card'),
                 card: {
-                    brand: row.get('cardBrand') || 'unknown',
-                    last4: row.get('last4') || '0000',
-                    exp_month: parseInt(row.get('expiryMonth')) || 1,
-                    exp_year: parseInt(row.get('expiryYear')) || new Date().getFullYear()
+                    brand: safeGetRowValue(row, 'cardBrand', 'unknown'),
+                    last4: safeGetRowValue(row, 'last4', '0000'),
+                    exp_month: parseInt(safeGetRowValue(row, 'expiryMonth', '1')) || 1,
+                    exp_year: parseInt(safeGetRowValue(row, 'expiryYear', String(new Date().getFullYear()))) || new Date().getFullYear()
                 },
                 isDefault: isDefault
             };
@@ -89,7 +126,7 @@ async function getUserPaymentMethods(userId) {
             // Set default method info
             if (isDefault) {
                 defaultMethodId = methodId;
-                defaultMethodType = row.get('type') || 'card';
+                defaultMethodType = safeGetRowValue(row, 'type', 'card');
             }
         });
 
@@ -125,9 +162,9 @@ async function getUserOrders(userId) {
 
         // Filter orders by user - specifically using userId parameter
         const userOrders = orderRows.filter(row => {
-            const customerEmail = row.get('customerEmail');
-            const customerId = row.get('customerId');
-            const orderUserId = row.get('userId');
+            const customerEmail = safeGetRowValue(row, 'customerEmail');
+            const customerId = safeGetRowValue(row, 'customerId');
+            const orderUserId = safeGetRowValue(row, 'userId');
 
             // Match against userId parameter in multiple ways
             return customerEmail === userId ||
@@ -137,37 +174,39 @@ async function getUserOrders(userId) {
 
         // Build orders with items
         const orders = userOrders.map(row => {
-            const orderId = row.get('id');
+            const orderId = safeGetRowValue(row, 'id');
             const orderItems = itemRows
-                .filter(itemRow => itemRow.get('orderId') === orderId)
+                .filter(itemRow => safeGetRowValue(itemRow, 'orderId') === orderId)
                 .map(itemRow => ({
-                    productId: itemRow.get('productId'),
-                    name: itemRow.get('productName'),
-                    quantity: parseInt(itemRow.get('quantity')) || 0,
-                    price: parseFloat(itemRow.get('price')) || 0,
-                    total: parseFloat(itemRow.get('total')) || 0
+                    productId: safeGetRowValue(itemRow, 'productId'),
+                    name: safeGetRowValue(itemRow, 'productName'),
+                    quantity: parseInt(safeGetRowValue(itemRow, 'quantity', '0')) || 0,
+                    price: parseFloat(safeGetRowValue(itemRow, 'price', '0')) || 0,
+                    total: parseFloat(safeGetRowValue(itemRow, 'total', '0')) || 0
                 }));
 
-            // Safe parsing for shipping address
-            const shippingAddressRaw = row.get('shippingAddress');
-            const shippingAddress = safeJsonParse(shippingAddressRaw, {
+            // Safe parsing for shipping address with improved handling
+            const shippingAddressRaw = safeGetRowValue(row, 'shippingAddress');
+            const defaultAddress = {
                 street: '',
                 city: '',
                 state: '',
                 zipCode: '',
                 country: ''
-            });
+            };
+            
+            const shippingAddress = safeJsonParse(shippingAddressRaw, defaultAddress);
 
             return {
                 id: orderId,
-                customerName: row.get('customerName') || '',
-                customerEmail: row.get('customerEmail') || '',
-                customerPhone: row.get('customerPhone') || '',
+                customerName: safeGetRowValue(row, 'customerName'),
+                customerEmail: safeGetRowValue(row, 'customerEmail'),
+                customerPhone: safeGetRowValue(row, 'customerPhone'),
                 shippingAddress: shippingAddress,
-                total: parseFloat(row.get('total')) || 0,
-                status: row.get('status') || 'pending',
-                createdAt: row.get('createdAt') || new Date().toISOString(),
-                updatedAt: row.get('updatedAt') || new Date().toISOString(),
+                total: parseFloat(safeGetRowValue(row, 'total', '0')) || 0,
+                status: safeGetRowValue(row, 'status', 'pending'),
+                createdAt: safeGetRowValue(row, 'createdAt', new Date().toISOString()),
+                updatedAt: safeGetRowValue(row, 'updatedAt', new Date().toISOString()),
                 items: orderItems
             };
         });
@@ -198,7 +237,8 @@ async function updateDefaultPaymentMethod(userId, methodId, methodType) {
 
         // Find all payment methods for this user
         const userPaymentRows = paymentRows.filter(row =>
-            row.get('userId') === userId || row.get('customerEmail') === userId
+            safeGetRowValue(row, 'userId') === userId || 
+            safeGetRowValue(row, 'customerEmail') === userId
         );
 
         if (userPaymentRows.length === 0) {
@@ -206,14 +246,14 @@ async function updateDefaultPaymentMethod(userId, methodId, methodType) {
         }
 
         // Find the specific method to set as default
-        const targetMethod = userPaymentRows.find(row => row.get('id') === methodId);
+        const targetMethod = userPaymentRows.find(row => safeGetRowValue(row, 'id') === methodId);
         if (!targetMethod) {
             throw new Error(`Payment method ${methodId} not found for user ${userId}`);
         }
 
         // Update all user's payment methods - set isDefault to false
         await Promise.all(userPaymentRows.map(async (row) => {
-            if (row.get('id') === methodId) {
+            if (safeGetRowValue(row, 'id') === methodId) {
                 row.set('isDefault', 'true');
                 row.set('updatedAt', new Date().toISOString());
             } else {

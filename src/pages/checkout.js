@@ -6,29 +6,59 @@ import Head from 'next/head';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import OrderSummary from '../components/checkout/OrderSummary';
-import ContactInformation from '../components/checkout/ContactInformation';
 import LoadingScreen from '../components/LoadingScreen';
 import { notifyEvent } from '../components/Notification';
-import AddressManager from '../components/AddressManager';
 import OrderConfirmationModal from '../components/checkout/OrderConfirmationModal';
+import GuestRegistrationPrompt from '../components/checkout/GuestRegistrationPrompt';
+import CheckoutForm from '../components/checkout/CheckoutForm';
 import { useCheckoutAddress } from '../hooks/useCheckoutAddress';
-import PaymentMethodSelector from '../components/checkout/PaymentMethodSelector';
+import { useCheckoutData } from '../hooks/useCheckoutData';
+import { useCheckoutForm } from '../hooks/useCheckoutForm';
+import { usePaymentMethods } from '../hooks/usePaymentMethods';
 
 export default function Checkout() {
     const router = useRouter();
     const { mode } = router.query;
 
+    // Custom hooks
+    const { checkoutData, setCheckoutData } = useCheckoutAddress();
+    const { 
+        checkoutItems, 
+        isLoading, 
+        subtotal, 
+        total, 
+        shippingFee, 
+        setShippingFee, 
+        baseShippingFee, 
+        setBaseShippingFee 
+    } = useCheckoutData();
+    
+    const {
+        formData,
+        setFormData,
+        handleInputChange,
+        formIsValid,
+        setFormIsValid,
+        termsAccepted,
+        setTermsAccepted,
+    } = useCheckoutForm();
+
+    // Fixed: Pass the setShippingFee function properly to usePaymentMethods
+    const {
+        paymentMethod,
+        paymentVerified,
+        setPaymentVerified,
+        handlePaymentMethodChange: handlePaymentChange
+    } = usePaymentMethods(baseShippingFee, setShippingFee);
+
+    // Authentication and user state
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isGuestCheckout, setIsGuestCheckout] = useState(false);
-    const [checkoutItems, setCheckoutItems] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState('pay_on_delivery');
-    const [paymentVerified, setPaymentVerified] = useState(true);
     const [userId, setUserId] = useState('');
-    const [formIsValid, setFormIsValid] = useState(false);
-    const [termsAccepted, setTermsAccepted] = useState(false);
-    const { checkoutData, setCheckoutData } = useCheckoutAddress();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Address management state
+    const [defaultAddress, setDefaultAddress] = useState(null);
 
     // Order completed state
     const [showOrderModal, setShowOrderModal] = useState(false);
@@ -38,172 +68,57 @@ export default function Checkout() {
     const [showBankTransferPopup, setShowBankTransferPopup] = useState(false);
     const [pendingOrderId, setPendingOrderId] = useState(null);
 
-    // Form data and shipping calculations
-    const [formData, setFormData] = useState({
-        email: '',
-        firstName: '',
-        lastName: '',
-        phoneNumber: ''
-    });
-    const [shippingFee, setShippingFee] = useState(3500);
-    const [baseShippingFee, setBaseShippingFee] = useState(3500);
+    // UI state for smooth interactions
+    const [isFormTransitioning, setIsFormTransitioning] = useState(false);
 
-    // Calculate order summary values
-    const subtotal = checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const total = subtotal + shippingFee;
-
-    // Load checkout items once when component mounts or mode changes
+    // Load data when component mounts or mode changes
     useEffect(() => {
         if (router.isReady) {
-            loadCheckoutItems();
             loadAuthAndUserData();
         }
     }, [router.isReady, mode]);
 
-    // Validate form whenever form data or payment status changes
+    // Enhanced form validation that works with the new CheckoutForm approach
     useEffect(() => {
-        validateForm();
-    }, [formData, checkoutData, paymentVerified, termsAccepted]);
+        const validateFormData = () => {
+            const errors = [];
+            
+            // Contact information validation
+            if (!formData.email?.trim()) errors.push('Email is required');
+            if (!formData.firstName?.trim()) errors.push('First name is required');
+            if (!formData.lastName?.trim()) errors.push('Last name is required');
+            if (!formData.phoneNumber?.trim()) errors.push('Phone number is required');
 
-    const validateForm = () => {
-        const requiredContactFields = [
-            'email',
-            'firstName',
-            'lastName',
-            'phoneNumber'
-        ];
-
-        const requiredAddressFields = [
-            'address',
-            'state',
-            'lga'
-        ];
-
-        const invalidContactFields = requiredContactFields.filter(field =>
-            !formData[field] || formData[field].trim() === ''
-        );
-
-        const invalidAddressFields = requiredAddressFields.filter(field =>
-            !checkoutData[field] || checkoutData[field].trim() === ''
-        );
-
-        const allFieldsFilled = invalidContactFields.length === 0 && invalidAddressFields.length === 0;
-        setFormIsValid(allFieldsFilled && paymentVerified && termsAccepted);
-    };
-
-    const loadCheckoutItems = async () => {
-        try {
-            let items = [];
-
-            if (mode === 'direct') {
-                // Direct checkout from product page
-                const directItem = JSON.parse(localStorage.getItem('directPurchaseItem') || 'null');
-                if (directItem) {
-                    try {
-                        const response = await fetch(`/api/products/${directItem.productId}`);
-                        if (response.ok) {
-                            const currentProduct = await response.json();
-                            items = [{
-                                ...directItem,
-                                price: currentProduct.price,
-                                name: currentProduct.name,
-                                imageUrl: currentProduct.imageUrl,
-                                quantity: directItem.quantity
-                            }];
-                        } else {
-                            items = [directItem];
-                        }
-                    } catch (error) {
-                        console.error('Error fetching current product data:', error);
-                        items = [directItem];
-                    }
-                }
-            } else {
-                // Regular checkout from cart
-                const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
-
-                const updatedItems = await Promise.all(
-                    cartItems.map(async (item) => {
-                        try {
-                            const response = await fetch(`/api/products/${item.productId}`);
-                            if (response.ok) {
-                                const currentProduct = await response.json();
-                                return {
-                                    ...item,
-                                    price: currentProduct.price,
-                                    name: currentProduct.name,
-                                    imageUrl: currentProduct.imageUrl,
-                                    quantity: item.quantity
-                                };
-                            }
-                        } catch (error) {
-                            console.error(`Error fetching product ${item.productId}:`, error);
-                        }
-                        return item;
-                    })
-                );
-
-                items = updatedItems;
+            // Address validation (skip for pickup)
+            if (paymentMethod !== 'pay_at_pickup') {
+                if (!checkoutData.address?.trim()) errors.push('Street address is required');
+                if (!checkoutData.state?.trim()) errors.push('State is required');
+                if (!checkoutData.lga?.trim()) errors.push('LGA is required');
+                if (!checkoutData.city?.trim()) errors.push('City is required');
             }
 
-            // Ensure each item has productId
-            items = items.map(item => {
-                if (!item.productId && item.id) {
-                    return { ...item, productId: item.id };
-                }
-                if (!item.productId && !item.id) {
-                    return { ...item, productId: item.name.replace(/\s+/g, '-').toLowerCase() };
-                }
-                return item;
-            });
+            // Payment verification
+            if (!paymentVerified) errors.push('Payment method verification required');
+            
+            // Terms acceptance
+            if (!termsAccepted) errors.push('Terms and conditions must be accepted');
 
-            setCheckoutItems(items);
-        } catch (error) {
-            console.error('Error loading checkout items:', error);
-            notifyEvent('Error loading checkout items. Please try again.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            setFormIsValid(errors.length === 0);
+            return errors;
+        };
 
-    const calculateShippingFeeAdjustment = (paymentMethod, baseShippingFee) => {
-        switch (paymentMethod) {
-            case 'pay_on_delivery':
-                return baseShippingFee; // Removed COD fee as per PaymentMethodSelector
-            case 'pay_at_pickup':
-                return 0; // Free shipping for pickup
-            default:
-                return baseShippingFee; // Default shipping fee
-        }
-    };
+        validateFormData();
+    }, [formData, checkoutData, paymentVerified, termsAccepted, paymentMethod, setFormIsValid]);
 
     const handlePaymentMethodChange = (newMethod) => {
-        setPaymentMethod(newMethod);
-
-        // Calculate new shipping fee
-        const newShippingFee = calculateShippingFeeAdjustment(newMethod, baseShippingFee);
-        setShippingFee(newShippingFee);
-
-        // Update payment verification status
-        if (newMethod.startsWith('saved_card_') ||
-            newMethod === 'bank_transfer' ||
-            newMethod === 'pay_on_delivery' ||
-            newMethod === 'pay_at_pickup') {
-            setPaymentVerified(true);
-        } else if (newMethod === 'card') {
-            setPaymentVerified(false); // Will need card details
-        }
-    };
-
-    // Handle shipping fee updates from the component
-    const handleShippingFeeChange = (feeAdjustment) => {
-        if (feeAdjustment < 0) {
-            // This is pay_at_pickup - set shipping to 0
-            setShippingFee(0);
-        } else {
-            // Add the fee adjustment to base shipping
-            setShippingFee(baseShippingFee + feeAdjustment);
-        }
+        setIsFormTransitioning(true);
+        handlePaymentChange(newMethod);
+        setFormIsValid(false); // Trigger revalidation
+        
+        // Smooth transition delay
+        setTimeout(() => {
+            setIsFormTransitioning(false);
+        }, 150);
     };
 
     const loadAuthAndUserData = async () => {
@@ -223,6 +138,7 @@ export default function Checkout() {
                     if (response.ok) {
                         const userProfile = await response.json();
 
+                        // Set form data from user profile
                         setFormData(prevState => ({
                             ...prevState,
                             email: userProfile.email || user.email || '',
@@ -231,8 +147,9 @@ export default function Checkout() {
                             phoneNumber: userProfile.phoneNumber || user.phone || ''
                         }));
 
-                        // Set address data from user profile
+                        // Set default address if available
                         if (userProfile.defaultAddress) {
+                            setDefaultAddress(userProfile.defaultAddress);
                             setCheckoutData(prevState => ({
                                 ...prevState,
                                 address: userProfile.defaultAddress.address || '',
@@ -241,13 +158,15 @@ export default function Checkout() {
                                 lga: userProfile.defaultAddress.lga || '',
                                 town: userProfile.defaultAddress.town || '',
                                 zip: userProfile.defaultAddress.zip || '',
+                                landmark: userProfile.defaultAddress.landmark || '',
                                 additionalInfo: userProfile.defaultAddress.additionalInfo || ''
                             }));
                         }
 
-                        // Set default payment method from user profile
+                        // Load user's default payment method
                         await loadUserDefaultPaymentMethod(user.id);
                     } else {
+                        // Fallback to basic user data
                         setFormData(prevState => ({
                             ...prevState,
                             email: user.email || '',
@@ -255,11 +174,11 @@ export default function Checkout() {
                             lastName: user.name?.split(' ').slice(1).join(' ') || '',
                             phoneNumber: user.phone || ''
                         }));
-                        // Set default payment method
                         await loadUserDefaultPaymentMethod(user.id);
                     }
                 } catch (error) {
                     console.error("Error fetching user profile:", error);
+                    // Set basic user data on error
                     setFormData(prevState => ({
                         ...prevState,
                         email: user.email || '',
@@ -270,11 +189,11 @@ export default function Checkout() {
                 }
             }
         } else {
+            // Generate guest user ID
             setUserId(`guest-${Date.now()}`);
         }
     };
 
-    // Load user's default payment method and saved cards
     const loadUserDefaultPaymentMethod = async (userIdParam) => {
         try {
             const response = await fetch(`/api/users/payment-methods/${userIdParam}`);
@@ -282,71 +201,58 @@ export default function Checkout() {
                 const data = await response.json();
                 const { paymentMethods = [], savedCards = [] } = data;
 
-                // Find default payment method
+                // Check for default saved card first
                 const defaultCard = savedCards.find(card => card.isDefault);
-                const defaultMethod = paymentMethods.find(method => method.isDefault);
-
                 if (defaultCard) {
-                    setPaymentMethod(`saved_card_${defaultCard.id}`);
-                    setShippingFee(baseShippingFee);
-                    setPaymentVerified(true);
-                } else if (defaultMethod) {
-                    switch (defaultMethod.type) {
-                        case 'card':
-                            setPaymentMethod('card');
-                            setShippingFee(baseShippingFee);
-                            setPaymentVerified(false); // Needs card details
-                            break;
-                        case 'bank_transfer':
-                            setPaymentMethod('bank_transfer');
-                            setShippingFee(baseShippingFee);
-                            setPaymentVerified(true);
-                            break;
-                        case 'pay_on_delivery':
-                            setPaymentMethod('pay_on_delivery');
-                            setShippingFee(baseShippingFee);
-                            setPaymentVerified(true);
-                            break;
-                        case 'pay_at_pickup':
-                            setPaymentMethod('pay_at_pickup');
-                            setShippingFee(0);
-                            setPaymentVerified(true);
-                            break;
-                        default:
-                            setPaymentMethod('pay_on_delivery');
-                            setShippingFee(baseShippingFee);
-                            setPaymentVerified(true);
+                    handlePaymentChange(`saved_card_${defaultCard.id}`);
+                    // Fixed: Use setShippingFee from useCheckoutData hook
+                    if (typeof setShippingFee === 'function') {
+                        setShippingFee(baseShippingFee);
                     }
-                } else {
-                    // No default method found, use pay_on_delivery as fallback
-                    setPaymentMethod('pay_on_delivery');
-                    setShippingFee(baseShippingFee);
                     setPaymentVerified(true);
+                    return;
                 }
-            } else {
-                // Error fetching payment methods, use default
-                setPaymentMethod('pay_on_delivery');
-                setShippingFee(baseShippingFee);
-                setPaymentVerified(true);
+
+                // Check for default payment method
+                const defaultMethod = paymentMethods.find(method => method.isDefault);
+                if (defaultMethod) {
+                    const methodType = defaultMethod.type;
+                    handlePaymentChange(methodType);
+                    
+                    // Adjust shipping fee based on method
+                    if (typeof setShippingFee === 'function') {
+                        if (methodType === 'pay_at_pickup') {
+                            setShippingFee(0);
+                        } else {
+                            setShippingFee(baseShippingFee);
+                        }
+                    }
+                    
+                    // Set payment verification status
+                    setPaymentVerified(methodType !== 'card');
+                    return;
+                }
             }
+            
+            // Fallback to default method
+            handlePaymentChange('pay_on_delivery');
+            if (typeof setShippingFee === 'function') {
+                setShippingFee(baseShippingFee);
+            }
+            setPaymentVerified(true);
         } catch (error) {
             console.error('Error loading user payment methods:', error);
-            // Fallback to pay_on_delivery
-            setPaymentMethod('pay_on_delivery');
-            setShippingFee(baseShippingFee);
+            // Fallback on error
+            handlePaymentChange('pay_on_delivery');
+            if (typeof setShippingFee === 'function') {
+                setShippingFee(baseShippingFee);
+            }
             setPaymentVerified(true);
         }
     };
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prevData => ({
-            ...prevData,
-            [name]: value
-        }));
-    };
-
     const handleRegisterRedirect = () => {
+        // Save current form state
         localStorage.setItem('checkoutFormData', JSON.stringify(formData));
         localStorage.setItem('checkoutAddressData', JSON.stringify(checkoutData));
 
@@ -384,11 +290,10 @@ export default function Checkout() {
         }
     }, []);
 
-    // Handle bank transfer order completion
     const handleBankTransferOrderComplete = () => {
         console.log('Completing bank transfer order:', pendingOrderId);
         
-        // Clear checkout data
+        // Clean up cart/direct purchase data
         if (mode === 'direct') {
             localStorage.removeItem('directPurchaseItem');
         } else {
@@ -396,20 +301,18 @@ export default function Checkout() {
             window.dispatchEvent(new CustomEvent('cartUpdated'));
         }
 
+        // Clean up guest checkout flag
         if (isGuestCheckout) {
             localStorage.removeItem('guestCheckout');
         }
 
-        // Close bank transfer popup
+        // Close popup and reset state
         setShowBankTransferPopup(false);
-        
-        // Clear pending order ID
         setPendingOrderId(null);
         
-        // Show success message
         notifyEvent('Payment confirmed! Your order has been processed successfully.', 'success');
         
-        // Redirect to orders page or home
+        // Redirect based on authentication status
         if (isAuthenticated) {
             router.push('/account/orders');
         } else {
@@ -423,28 +326,42 @@ export default function Checkout() {
         try {
             setIsSubmitting(true);
 
+            // Comprehensive validation
             const validationErrors = [];
 
             // Contact information validation
-            if (!formData.email) validationErrors.push('Email is required');
-            if (!formData.firstName) validationErrors.push('First name is required');
-            if (!formData.lastName) validationErrors.push('Last name is required');
-            if (!formData.phoneNumber) validationErrors.push('Phone number is required');
+            if (!formData.email?.trim()) validationErrors.push('Email is required');
+            if (!formData.firstName?.trim()) validationErrors.push('First name is required');
+            if (!formData.lastName?.trim()) validationErrors.push('Last name is required');
+            if (!formData.phoneNumber?.trim()) validationErrors.push('Phone number is required');
 
-            // Shipping address validation (skip for pickup)
-            if (paymentMethod !== 'pay_at_pickup') {
-                if (!checkoutData.address) validationErrors.push('Street address is required');
-                if (!checkoutData.state) validationErrors.push('State is required');
-                if (!checkoutData.lga) validationErrors.push('LGA is required');
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (formData.email && !emailRegex.test(formData.email)) {
+                validationErrors.push('Please enter a valid email address');
             }
 
-            // Terms validation
+            // Address validation (skip for pickup)
+            if (paymentMethod !== 'pay_at_pickup') {
+                // Use defaultAddress if available, otherwise use checkoutData
+                const addressData = defaultAddress || checkoutData;
+                if (!addressData.address?.trim()) validationErrors.push('Street address is required');
+                if (!addressData.state?.trim()) validationErrors.push('State is required');
+                if (!addressData.lga?.trim()) validationErrors.push('LGA is required');
+                if (!addressData.city?.trim()) validationErrors.push('City is required');
+            }
+
+            // Payment verification
+            if (!paymentVerified) validationErrors.push('Payment method must be verified');
+
+            // Terms acceptance
             if (!termsAccepted) validationErrors.push('You must accept the terms and conditions');
 
             if (validationErrors.length > 0) {
                 throw new Error(`Please correct the following: ${validationErrors.join(', ')}`);
             }
 
+            // Prepare order items
             const orderItems = checkoutItems.map(item => ({
                 productId: item.productId || item.id,
                 name: item.name,
@@ -453,24 +370,20 @@ export default function Checkout() {
                 imageUrl: item.imageUrl || '',
             }));
 
-            if (!userId) {
-                throw new Error('User ID is missing');
-            }
+            // Validate order data
+            if (!userId) throw new Error('User ID is missing');
+            if (!orderItems || orderItems.length === 0) throw new Error('No items in cart');
+            if (!paymentMethod) throw new Error('Payment method is required');
 
-            if (!orderItems || orderItems.length === 0) {
-                throw new Error('No items in cart');
-            }
-
-            if (!paymentMethod) {
-                throw new Error('Payment method is required');
-            }
-
-            // Combine contact and address data
+            // Prepare customer data combining contact info and address
+            // Use defaultAddress if available, otherwise use checkoutData
+            const addressData = defaultAddress || checkoutData;
             const customerData = {
                 ...formData,
-                ...checkoutData
+                ...addressData
             };
 
+            // Prepare order data
             const orderData = {
                 userId: userId,
                 items: orderItems,
@@ -486,6 +399,7 @@ export default function Checkout() {
 
             console.log('Submitting order data:', orderData);
 
+            // Submit order
             const res = await fetch('/api/orders/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -499,14 +413,14 @@ export default function Checkout() {
                 localStorage.setItem('lastOrderId', data.order.orderId);
                 setPendingOrderId(data.order.orderId);
 
-                // If bank transfer is selected, show the popup
+                // Handle bank transfer separately
                 if (paymentMethod === 'bank_transfer') {
                     setIsSubmitting(false);
                     setShowBankTransferPopup(true);
                     return;
                 }
 
-                // Clear checkout data for other payment methods
+                // Clean up cart/direct purchase data
                 if (mode === 'direct') {
                     localStorage.removeItem('directPurchaseItem');
                 } else {
@@ -514,20 +428,22 @@ export default function Checkout() {
                     window.dispatchEvent(new CustomEvent('cartUpdated'));
                 }
 
+                // Clean up guest checkout flag
                 if (isGuestCheckout) {
                     localStorage.removeItem('guestCheckout');
                 }
 
-                // Clear pending order ID for non-bank-transfer payments
                 setPendingOrderId(null);
 
+                // Show appropriate notification
                 if (!res.ok && data.warning) {
                     notifyEvent(data.warning, 'warning');
                 } else {
                     notifyEvent('Order placed successfully!', 'success');
                 }
 
-                // Prepare order details for the modal
+                // Prepare order details for confirmation modal
+                const addressData = defaultAddress || checkoutData;
                 const orderDetails = {
                     orderId: data.order.orderId,
                     items: orderItems,
@@ -535,11 +451,13 @@ export default function Checkout() {
                         fullName: `${formData.firstName} ${formData.lastName}`,
                         phone: formData.phoneNumber,
                         email: formData.email,
-                        address: checkoutData.address,
-                        city: checkoutData.city,
-                        state: checkoutData.state,
-                        lga: checkoutData.lga || '',
-                        additionalInfo: checkoutData.additionalInfo || ''
+                        address: addressData.address,
+                        city: addressData.city,
+                        state: addressData.state,
+                        lga: addressData.lga || '',
+                        town: addressData.town || '',
+                        landmark: addressData.landmark || '',
+                        additionalInfo: addressData.additionalInfo || ''
                     },
                     paymentMethod,
                     total,
@@ -573,12 +491,10 @@ export default function Checkout() {
         }
     }, [isLoading, checkoutItems.length, router, showOrderModal]);
 
-    // Render loading screen
     if (isLoading) {
         return <LoadingScreen message="Loading checkout..." />;
     }
 
-    // Don't render if no items and modal not shown
     if (checkoutItems.length === 0 && !showOrderModal) {
         return <LoadingScreen message="Redirecting..." />;
     }
@@ -612,157 +528,44 @@ export default function Checkout() {
                                 />
                             </div>
 
-                            {/* Register suggestion for guest users */}
+                            {/* Guest Registration Prompt */}
                             {isGuestCheckout && !isAuthenticated && (
-                                <div className="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
-                                    <div className="flex items-start">
-                                        <div className="flex-shrink-0">
-                                            <svg className="h-5 w-5 text-blue-400 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                        <div className="ml-3 flex-1">
-                                            <h3 className="text-sm font-medium text-blue-800">
-                                                Create an account to track your order
-                                            </h3>
-                                            <p className="mt-1 text-xs text-blue-700">
-                                                Register to easily track your order status and enjoy faster checkout next time.
-                                            </p>
-                                            <button
-                                                onClick={handleRegisterRedirect}
-                                                className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-500 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                                            >
-                                                Create Account
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <GuestRegistrationPrompt
+                                    onRegisterRedirect={handleRegisterRedirect}
+                                />
                             )}
                         </div>
                     </div>
 
                     {/* Checkout Form Section */}
                     <div className="lg:col-span-8">
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            {/* Contact Information */}
-                            <div className="bg-white rounded-xl shadow-lg p-6">
-                                <ContactInformation
-                                    formData={formData}
-                                    handleInputChange={handleInputChange}
-                                    isAuthenticated={isAuthenticated}
-                                />
-                            </div>
-
-                            {/* Address Manager - Skip for pickup */}
-                            {paymentMethod !== 'pay_at_pickup' && (
-                                <div className="bg-white rounded-xl shadow-lg p-6">
-                                    <AddressManager
-                                        mode="checkout"
-                                        formData={checkoutData}
-                                        handleInputChange={(e) => setCheckoutData(prev => ({ ...prev, [e.target.name]: e.target.value }))}
-                                        onAddressSelect={(address) => setCheckoutData(prev => ({ ...prev, ...address }))}
-                                        setShippingFee={setShippingFee}
-                                        setBaseShippingFee={setBaseShippingFee}
-                                        paymentMethod={paymentMethod}
-                                    />
-                                </div>
-                            )}
-
-                            {/* Payment Method */}
-                            <div className="bg-white rounded-xl shadow-lg p-6">
-                                <PaymentMethodSelector
-                                    selectedMethod={paymentMethod}
-                                    onMethodChange={handlePaymentMethodChange}
-                                    onShippingFeeChange={handleShippingFeeChange}
-                                    onPaymentVerifiedChange={setPaymentVerified}
-                                    userId={userId}
-                                    isAuthenticated={isAuthenticated}
-                                    onOrderComplete={handleBankTransferOrderComplete}
-                                    showBankTransferPopup={showBankTransferPopup}
-                                    onCloseBankTransferPopup={() => setShowBankTransferPopup(false)}
-                                    orderTotal={total}
-                                    pendingOrderId={pendingOrderId}
-                                />
-                            </div>
-
-                            {/* Terms and Conditions */}
-                            <div className="bg-white rounded-xl shadow-lg p-6">
-                                <h2 className="text-lg font-semibold mb-4">Terms & Conditions</h2>
-                                <div className="flex items-start">
-                                    <div className="flex h-5 items-center">
-                                        <input
-                                            id="terms"
-                                            name="terms"
-                                            type="checkbox"
-                                            checked={termsAccepted}
-                                            onChange={(e) => setTermsAccepted(e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                    <div className="ml-3 text-sm">
-                                        <label htmlFor="terms" className="text-gray-700">
-                                            I agree to the{' '}
-                                            <a href="/terms" target="_blank" className="text-blue-600 hover:underline">
-                                                Terms of Service
-                                            </a>{' '}
-                                            and{' '}
-                                            <a href="/privacy" target="_blank" className="text-blue-600 hover:underline">
-                                                Privacy Policy
-                                            </a>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex justify-center items-center gap-4 mt-6 w-full max-w-xl mx-auto">
-                                <button
-                                    type="button"
-                                    onClick={handleCancel}
-                                    className="w-[30%] px-4 py-3 border border-primary-700 text-primary-700 rounded hover:bg-gray-100 transition-colors duration-200 font-medium"
-                                >
-                                    Cancel
-                                </button>
-
-                                <button
-                                    type="submit"
-                                    disabled={!formIsValid || isSubmitting}
-                                    className={`w-[70%] px-4 py-3 rounded text-white font-medium text-md ${formIsValid && !isSubmitting
-                                        ? 'bg-primary-700 hover:bg-primary-500'
-                                        : 'bg-gray-300 cursor-not-allowed'
-                                        } transition-colors duration-200 flex items-center justify-center`}
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <svg
-                                                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <circle
-                                                    className="opacity-25"
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    stroke="currentColor"
-                                                    strokeWidth="4"
-                                                ></circle>
-                                                <path
-                                                    className="opacity-75"
-                                                    fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                ></path>
-                                            </svg>
-                                            Processing...
-                                        </>
-                                    ) : (
-                                        'Complete Order'
-                                    )}
-                                </button>
-                            </div>
-
-                        </form>
+                        <div className={`transition-all duration-150 ${isFormTransitioning ? 'opacity-95 transform scale-[0.999]' : 'opacity-100 transform scale-100'}`}>
+                            <CheckoutForm
+                                formData={formData}
+                                handleInputChange={handleInputChange}
+                                isAuthenticated={isAuthenticated}
+                                paymentMethod={paymentMethod}
+                                handlePaymentMethodChange={handlePaymentMethodChange}
+                                defaultAddress={defaultAddress}
+                                checkoutData={checkoutData}
+                                setCheckoutData={setCheckoutData}
+                                setShippingFee={setShippingFee}
+                                setBaseShippingFee={setBaseShippingFee}
+                                userId={userId}
+                                onPaymentVerifiedChange={setPaymentVerified}
+                                onOrderComplete={handleBankTransferOrderComplete}
+                                showBankTransferPopup={showBankTransferPopup}
+                                onCloseBankTransferPopup={() => setShowBankTransferPopup(false)}
+                                orderTotal={total}
+                                pendingOrderId={pendingOrderId}
+                                termsAccepted={termsAccepted}
+                                setTermsAccepted={setTermsAccepted}
+                                formIsValid={formIsValid}
+                                isSubmitting={isSubmitting}
+                                onSubmit={handleSubmit}
+                                onCancel={handleCancel}
+                            />
+                        </div>
                     </div>
                 </div>
             </main>
