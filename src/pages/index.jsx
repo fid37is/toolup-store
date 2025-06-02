@@ -1,4 +1,4 @@
-// src/pages/index.jsx - Enhanced with random display and infinite scroll
+// Enhanced version with circular infinite scroll
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import Header from '../components/Header';
@@ -15,7 +15,6 @@ export default function Home() {
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState(null);
-    const [hasMore, setHasMore] = useState(true);
 
     // Search and filter states
     const [searchQuery, setSearchQuery] = useState('');
@@ -31,9 +30,9 @@ export default function Home() {
     const [selectedImageUrl, setSelectedImageUrl] = useState('');
     const [selectedProductName, setSelectedProductName] = useState('');
 
-    // Infinite scroll settings
+    // Circular infinite scroll settings
     const ITEMS_PER_PAGE = 12;
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentCycle, setCurrentCycle] = useState(0); // Track how many times we've cycled through
     const observer = useRef();
 
     // Utility function to shuffle array randomly
@@ -46,31 +45,53 @@ export default function Home() {
         return shuffled;
     };
 
-    // Load more products for infinite scroll
+    // Load more products for circular infinite scroll
     const loadMoreProducts = useCallback(() => {
-        if (isLoadingMore || !hasMore) return;
+        if (isLoadingMore || filteredProducts.length === 0) return;
 
         setIsLoadingMore(true);
         
         setTimeout(() => {
-            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const newProducts = filteredProducts.slice(startIndex, endIndex);
-
-            if (newProducts.length === 0) {
-                setHasMore(false);
-            } else {
-                setDisplayedProducts(prev => [...prev, ...newProducts]);
-                setCurrentPage(prev => prev + 1);
-                
-                if (endIndex >= filteredProducts.length) {
-                    setHasMore(false);
-                }
+            // Calculate how many products we've already shown
+            const totalShown = displayedProducts.length;
+            const productsInCurrentCycle = totalShown % filteredProducts.length;
+            
+            // Determine how many more products to add
+            const remainingInCycle = filteredProducts.length - productsInCurrentCycle;
+            const itemsToAdd = Math.min(ITEMS_PER_PAGE, remainingInCycle);
+            
+            // Get next batch of products
+            let newProducts = [];
+            
+            if (itemsToAdd > 0) {
+                // Add remaining products from current cycle
+                newProducts = filteredProducts.slice(productsInCurrentCycle, productsInCurrentCycle + itemsToAdd);
             }
             
+            // If we need more products to fill the batch, start a new cycle
+            if (newProducts.length < ITEMS_PER_PAGE) {
+                const additionalNeeded = ITEMS_PER_PAGE - newProducts.length;
+                
+                // Optionally shuffle for variety in new cycles
+                const nextCycleProducts = sortOption === 'random' || sortOption === '' ? 
+                    shuffleArray(filteredProducts) : filteredProducts;
+                
+                const additionalProducts = nextCycleProducts.slice(0, additionalNeeded);
+                newProducts = [...newProducts, ...additionalProducts];
+                
+                setCurrentCycle(prev => prev + 1);
+            }
+
+            // Add unique keys to distinguish between cycles
+            const productsWithCycleKeys = newProducts.map((product, index) => ({
+                ...product,
+                cycleKey: `cycle-${currentCycle}-${product.id}-${totalShown + index}`
+            }));
+
+            setDisplayedProducts(prev => [...prev, ...productsWithCycleKeys]);
             setIsLoadingMore(false);
-        }, 500); // Small delay to show loading state
-    }, [currentPage, filteredProducts, isLoadingMore, hasMore]);
+        }, 300); // Reduced delay for smoother experience
+    }, [filteredProducts, displayedProducts, isLoadingMore, currentCycle, sortOption]);
 
     // Ref callback for intersection observer
     const lastProductElementRef = useCallback(node => {
@@ -78,16 +99,16 @@ export default function Home() {
         if (observer.current) observer.current.disconnect();
         
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
+            if (entries[0].isIntersecting) {
                 loadMoreProducts();
             }
         }, {
             threshold: 0.1,
-            rootMargin: '100px'
+            rootMargin: '200px' // Increased margin for smoother loading
         });
         
         if (node) observer.current.observe(node);
-    }, [isLoadingMore, hasMore, loadMoreProducts]);
+    }, [isLoadingMore, loadMoreProducts]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -132,15 +153,16 @@ export default function Home() {
     // Reset displayed products when filters change
     useEffect(() => {
         setDisplayedProducts([]);
-        setCurrentPage(1);
-        setHasMore(true);
+        setCurrentCycle(0);
         
-        // Load initial batch
-        const initialProducts = filteredProducts.slice(0, ITEMS_PER_PAGE);
-        setDisplayedProducts(initialProducts);
-        
-        if (initialProducts.length < ITEMS_PER_PAGE || initialProducts.length >= filteredProducts.length) {
-            setHasMore(false);
+        // Load initial batch with cycle keys
+        if (filteredProducts.length > 0) {
+            const initialProducts = filteredProducts.slice(0, ITEMS_PER_PAGE);
+            const productsWithKeys = initialProducts.map((product, index) => ({
+                ...product,
+                cycleKey: `cycle-0-${product.id}-${index}`
+            }));
+            setDisplayedProducts(productsWithKeys);
         }
     }, [filteredProducts]);
 
@@ -315,7 +337,7 @@ export default function Home() {
                                         {categories.map(category => (
                                             <option key={category} value={category}>
                                                 {category}
-                                            </option>
+                            </option>
                                         ))}
                                     </select>
                                 </div>
@@ -383,7 +405,7 @@ export default function Home() {
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                             {displayedProducts.map((product, index) => (
                                 <div
-                                    key={`${product.id}-${index}`}
+                                    key={product.cycleKey}
                                     ref={index === displayedProducts.length - 1 ? lastProductElementRef : null}
                                 >
                                     <ProductCard 
