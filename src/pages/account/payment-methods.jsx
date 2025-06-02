@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 const PaymentMethodsPage = () => {
     const router = useRouter()
     const [paymentMethods, setPaymentMethods] = useState([]);
-    const [savedCards, setSavedCards] = useState([]); // Fixed: Initialize as empty array instead of undefined
+    const [savedCards, setSavedCards] = useState([]);
     const [showAddCard, setShowAddCard] = useState(false);
     const [newCard, setNewCard] = useState({
         cardNumber: '',
@@ -18,25 +18,90 @@ const PaymentMethodsPage = () => {
     });
     const [isLoading, setIsLoading] = useState(false);
 
-    // Initialize payment methods with default options
+    // Load saved preferences and initialize payment methods
     useEffect(() => {
-        const defaultMethods = [
-            { id: 'card', type: 'card', name: 'Card Payment', icon: CreditCard, isDefault: false },
-            { id: 'bank_transfer', type: 'bank_transfer', name: 'Bank Transfer', icon: DollarSign, isDefault: false },
-            { id: 'pay_on_delivery', type: 'pay_on_delivery', name: 'Pay on Delivery', icon: Truck, isDefault: true },
-            { id: 'pay_at_pickup', type: 'pay_at_pickup', name: 'Pay at Pick Up', icon: MapPin, isDefault: false }
-        ];
-        setPaymentMethods(defaultMethods);
+        const loadSavedData = () => {
+            try {
+                // Load saved cards
+                const savedCardsData = localStorage.getItem('savedCards');
+                if (savedCardsData) {
+                    setSavedCards(JSON.parse(savedCardsData));
+                }
+
+                // Load saved payment preferences
+                const savedPreferences = localStorage.getItem('paymentPreferences');
+                let defaultMethodId = 'pay_on_delivery'; // fallback default
+                let defaultMethodType = 'pay_on_delivery';
+
+                if (savedPreferences) {
+                    const preferences = JSON.parse(savedPreferences);
+                    defaultMethodId = preferences.defaultMethodId;
+                    defaultMethodType = preferences.defaultMethodType;
+                }
+
+                // Initialize payment methods with saved preferences
+                const defaultMethods = [
+                    { 
+                        id: 'card', 
+                        type: 'card', 
+                        name: 'Card Payment', 
+                        icon: CreditCard, 
+                        isDefault: defaultMethodType === 'card' 
+                    },
+                    { 
+                        id: 'bank_transfer', 
+                        type: 'bank_transfer', 
+                        name: 'Bank Transfer', 
+                        icon: DollarSign, 
+                        isDefault: defaultMethodId === 'bank_transfer' 
+                    },
+                    { 
+                        id: 'pay_on_delivery', 
+                        type: 'pay_on_delivery', 
+                        name: 'Pay on Delivery', 
+                        icon: Truck, 
+                        isDefault: defaultMethodId === 'pay_on_delivery' 
+                    },
+                    { 
+                        id: 'pay_at_pickup', 
+                        type: 'pay_at_pickup', 
+                        name: 'Pay at Pick Up', 
+                        icon: MapPin, 
+                        isDefault: defaultMethodId === 'pay_at_pickup' 
+                    }
+                ];
+
+                setPaymentMethods(defaultMethods);
+            } catch (error) {
+                console.error('Error loading saved payment data:', error);
+                // Fallback to default initialization
+                const defaultMethods = [
+                    { id: 'card', type: 'card', name: 'Card Payment', icon: CreditCard, isDefault: false },
+                    { id: 'bank_transfer', type: 'bank_transfer', name: 'Bank Transfer', icon: DollarSign, isDefault: false },
+                    { id: 'pay_on_delivery', type: 'pay_on_delivery', name: 'Pay on Delivery', icon: Truck, isDefault: true },
+                    { id: 'pay_at_pickup', type: 'pay_at_pickup', name: 'Pay at Pick Up', icon: MapPin, isDefault: false }
+                ];
+                setPaymentMethods(defaultMethods);
+            }
+        };
+
+        loadSavedData();
     }, []);
 
     const handleSetDefault = async (methodId, methodType) => {
         try {
             // Update UI optimistically
             if (methodType === 'card') {
-                setSavedCards(prev => prev.map(card => ({
-                    ...card,
-                    isDefault: card.id === methodId
-                })));
+                setSavedCards(prev => {
+                    const updatedCards = prev.map(card => ({
+                        ...card,
+                        isDefault: card.id === methodId
+                    }));
+                    // Save updated cards to localStorage
+                    localStorage.setItem('savedCards', JSON.stringify(updatedCards));
+                    return updatedCards;
+                });
+                
                 setPaymentMethods(prev => prev.map(method => ({
                     ...method,
                     isDefault: method.type === 'card' && methodId
@@ -46,11 +111,25 @@ const PaymentMethodsPage = () => {
                     ...method,
                     isDefault: method.id === methodId
                 })));
-                setSavedCards(prev => prev.map(card => ({
-                    ...card,
-                    isDefault: false
-                })));
+                
+                setSavedCards(prev => {
+                    const updatedCards = prev.map(card => ({
+                        ...card,
+                        isDefault: false
+                    }));
+                    // Save updated cards to localStorage
+                    localStorage.setItem('savedCards', JSON.stringify(updatedCards));
+                    return updatedCards;
+                });
             }
+
+            // Save payment preferences to localStorage
+            const preferences = {
+                defaultMethodId: methodId,
+                defaultMethodType: methodType,
+                updatedAt: new Date().toISOString()
+            };
+            localStorage.setItem('paymentPreferences', JSON.stringify(preferences));
 
             // Persist to database (only for authenticated users)
             const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -69,7 +148,6 @@ const PaymentMethodsPage = () => {
             // Could add notification here if needed
         }
     };
-
 
     const handleAddCard = async (e) => {
         e.preventDefault();
@@ -91,7 +169,29 @@ const PaymentMethodsPage = () => {
                 createdAt: new Date().toISOString()
             };
 
-            setSavedCards(prev => [...prev, newCardData]);
+            setSavedCards(prev => {
+                const updatedCards = [...prev, newCardData];
+                // Save to localStorage
+                localStorage.setItem('savedCards', JSON.stringify(updatedCards));
+                return updatedCards;
+            });
+
+            // If this is the first card and it's set as default, update preferences
+            if (savedCards.length === 0) {
+                const preferences = {
+                    defaultMethodId: cardId,
+                    defaultMethodType: 'card',
+                    updatedAt: new Date().toISOString()
+                };
+                localStorage.setItem('paymentPreferences', JSON.stringify(preferences));
+                
+                // Update payment methods to reflect card as default
+                setPaymentMethods(prev => prev.map(method => ({
+                    ...method,
+                    isDefault: method.type === 'card'
+                })));
+            }
+
             setNewCard({ cardNumber: '', expiryMonth: '', expiryYear: '', cvv: '', holderName: '' });
             setShowAddCard(false);
         } catch (error) {
@@ -109,7 +209,30 @@ const PaymentMethodsPage = () => {
     };
 
     const handleDeleteCard = (cardId) => {
-        setSavedCards(prev => prev.filter(card => card.id !== cardId));
+        setSavedCards(prev => {
+            const updatedCards = prev.filter(card => card.id !== cardId);
+            // Save to localStorage
+            localStorage.setItem('savedCards', JSON.stringify(updatedCards));
+            
+            // If we deleted the default card, reset to default payment method
+            const deletedCard = prev.find(card => card.id === cardId);
+            if (deletedCard && deletedCard.isDefault) {
+                // Reset to pay on delivery as default
+                const preferences = {
+                    defaultMethodId: 'pay_on_delivery',
+                    defaultMethodType: 'pay_on_delivery',
+                    updatedAt: new Date().toISOString()
+                };
+                localStorage.setItem('paymentPreferences', JSON.stringify(preferences));
+                
+                setPaymentMethods(prevMethods => prevMethods.map(method => ({
+                    ...method,
+                    isDefault: method.id === 'pay_on_delivery'
+                })));
+            }
+            
+            return updatedCards;
+        });
     };
 
     const getDefaultPaymentMethod = () => {
