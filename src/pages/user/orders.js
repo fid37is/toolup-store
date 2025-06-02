@@ -1,10 +1,11 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @next/next/no-img-element */
-// Store Front - /pages/user/orders.js - MODIFIED WITH REAL-TIME UPDATES
+// Store Front - /pages/user/orders.js - MODIFIED WITH DIRECT FIREBASE AUTH
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../../../context/AuthContext';
-import { useWebSocket } from '../../../hooks/useWebSocket';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { toast } from 'sonner';
 import {
     Package,
@@ -20,8 +21,9 @@ import {
 } from 'lucide-react';
 
 const UserOrders = () => {
-    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
+    const [user, setUser] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -31,6 +33,16 @@ const UserOrders = () => {
     const { isConnected, lastMessage } = useWebSocket(
         process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3002'
     );
+
+    // Handle authentication state
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUser(user);
+            setAuthLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const statusConfig = {
         pending: {
