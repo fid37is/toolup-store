@@ -32,8 +32,12 @@ export default function Home() {
 
     // Circular infinite scroll settings
     const ITEMS_PER_PAGE = 12;
+    const CYCLES_BEFORE_REST = 3; // Number of cycles before showing footer rest
     const [currentCycle, setCurrentCycle] = useState(0); // Track how many times we've cycled through
+    const [isResting, setIsResting] = useState(false); // Whether we're in a rest period
+    const [hasScrolledInRest, setHasScrolledInRest] = useState(false); // Track if user scrolled during rest
     const observer = useRef();
+    const restScrollListener = useRef();
 
     // Utility function to shuffle array randomly
     const shuffleArray = (array) => {
@@ -45,9 +49,27 @@ export default function Home() {
         return shuffled;
     };
 
-    // Load more products for circular infinite scroll
+    // Load more products for circular infinite scroll with rest periods
     const loadMoreProducts = useCallback(() => {
         if (isLoadingMore || filteredProducts.length === 0) return;
+
+        // Check if we should enter a rest period
+        if (currentCycle > 0 && currentCycle % CYCLES_BEFORE_REST === 0 && !isResting) {
+            setIsResting(true);
+            setHasScrolledInRest(false);
+            return;
+        }
+
+        // If we're resting and user hasn't scrolled yet, don't load more
+        if (isResting && !hasScrolledInRest) {
+            return;
+        }
+
+        // If we're resting and user has scrolled, exit rest mode
+        if (isResting && hasScrolledInRest) {
+            setIsResting(false);
+            setHasScrolledInRest(false);
+        }
 
         setIsLoadingMore(true);
         
@@ -91,7 +113,7 @@ export default function Home() {
             setDisplayedProducts(prev => [...prev, ...productsWithCycleKeys]);
             setIsLoadingMore(false);
         }, 300); // Reduced delay for smoother experience
-    }, [filteredProducts, displayedProducts, isLoadingMore, currentCycle, sortOption]);
+    }, [filteredProducts, displayedProducts, isLoadingMore, currentCycle, sortOption, isResting, hasScrolledInRest]);
 
     // Ref callback for intersection observer
     const lastProductElementRef = useCallback(node => {
@@ -99,7 +121,7 @@ export default function Home() {
         if (observer.current) observer.current.disconnect();
         
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting) {
+            if (entries[0].isIntersecting && !isResting) {
                 loadMoreProducts();
             }
         }, {
@@ -108,7 +130,21 @@ export default function Home() {
         });
         
         if (node) observer.current.observe(node);
-    }, [isLoadingMore, loadMoreProducts]);
+    }, [isLoadingMore, loadMoreProducts, isResting]);
+
+    // Handle scroll during rest period
+    useEffect(() => {
+        if (isResting) {
+            const handleScroll = () => {
+                if (!hasScrolledInRest) {
+                    setHasScrolledInRest(true);
+                }
+            };
+
+            window.addEventListener('scroll', handleScroll);
+            return () => window.removeEventListener('scroll', handleScroll);
+        }
+    }, [isResting, hasScrolledInRest]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -154,6 +190,8 @@ export default function Home() {
     useEffect(() => {
         setDisplayedProducts([]);
         setCurrentCycle(0);
+        setIsResting(false);
+        setHasScrolledInRest(false);
         
         // Load initial batch with cycle keys
         if (filteredProducts.length > 0) {
@@ -416,8 +454,8 @@ export default function Home() {
                             ))}
                         </div>
 
-                        {/* Loading more indicator */}
-                        {isLoadingMore && (
+                        {/* Loading more indicator or rest message */}
+                        {isLoadingMore && !isResting && (
                             <div className="mt-8 flex justify-center">
                                 <div className="flex items-center space-x-2">
                                     <svg className="h-6 w-6 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -425,6 +463,16 @@ export default function Home() {
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                                     </svg>
                                     <span className="text-gray-600">Loading more products...</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Rest period message */}
+                        {isResting && (
+                            <div className="mt-8 mb-8 flex justify-center">
+                                <div className="text-center px-6 py-4 bg-blue-50 rounded-lg border border-blue-200">
+                                    <p className="text-blue-700 font-medium">You've browsed quite a bit! 🛍️</p>
+                                    <p className="text-blue-600 text-sm mt-1">Scroll down to continue browsing more products</p>
                                 </div>
                             </div>
                         )}
