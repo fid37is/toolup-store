@@ -1,4 +1,4 @@
-// Enhanced version with circular infinite scroll
+// Enhanced version with sequential infinite scroll
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import Header from '../components/Header';
@@ -30,14 +30,13 @@ export default function Home() {
     const [selectedImageUrl, setSelectedImageUrl] = useState('');
     const [selectedProductName, setSelectedProductName] = useState('');
 
-    // Circular infinite scroll settings
+    // Sequential infinite scroll settings
     const ITEMS_PER_PAGE = 12;
-    const CYCLES_BEFORE_REST = 3; // Number of cycles before showing footer rest
-    const [currentCycle, setCurrentCycle] = useState(0); // Track how many times we've cycled through
-    const [isResting, setIsResting] = useState(false); // Whether we're in a rest period
-    const [hasScrolledInRest, setHasScrolledInRest] = useState(false); // Track if user scrolled during rest
+    const [currentIndex, setCurrentIndex] = useState(0); // Track current position in products array
+    const [currentCycle, setCurrentCycle] = useState(0); // Track which cycle we're on
+    const [isWaitingForNextCycle, setIsWaitingForNextCycle] = useState(false); // Three dot loading state
+    const [showThreeDotLoader, setShowThreeDotLoader] = useState(false);
     const observer = useRef();
-    const restScrollListener = useRef();
 
     // Utility function to shuffle array randomly
     const shuffleArray = (array) => {
@@ -49,102 +48,75 @@ export default function Home() {
         return shuffled;
     };
 
-    // Load more products for circular infinite scroll with rest periods
+    // Load more products sequentially with cycle management
     const loadMoreProducts = useCallback(() => {
-        if (isLoadingMore || filteredProducts.length === 0) return;
+        if (isLoadingMore || filteredProducts.length === 0 || isWaitingForNextCycle) return;
 
-        // Check if we should enter a rest period
-        if (currentCycle > 0 && currentCycle % CYCLES_BEFORE_REST === 0 && !isResting) {
-            setIsResting(true);
-            setHasScrolledInRest(false);
+        // Check if we've reached the end of current cycle
+        if (currentIndex >= filteredProducts.length) {
+            // Show three dot loader and wait 3 seconds
+            setShowThreeDotLoader(true);
+            setIsWaitingForNextCycle(true);
+            
+            setTimeout(() => {
+                // Start new cycle
+                setCurrentCycle(prev => prev + 1);
+                setCurrentIndex(0);
+                setShowThreeDotLoader(false);
+                setIsWaitingForNextCycle(false);
+                
+                // Shuffle products for new cycle if random sorting
+                if (sortOption === 'random' || sortOption === '') {
+                    const shuffledProducts = shuffleArray(filteredProducts);
+                    setFilteredProducts(shuffledProducts);
+                }
+                
+                // Load first batch of new cycle
+                loadNextBatch(0, prev => prev + 1);
+            }, 3000);
+            
             return;
         }
 
-        // If we're resting and user hasn't scrolled yet, don't load more
-        if (isResting && !hasScrolledInRest) {
-            return;
-        }
+        loadNextBatch(currentIndex, currentCycle);
+    }, [filteredProducts, currentIndex, currentCycle, isLoadingMore, isWaitingForNextCycle, sortOption]);
 
-        // If we're resting and user has scrolled, exit rest mode
-        if (isResting && hasScrolledInRest) {
-            setIsResting(false);
-            setHasScrolledInRest(false);
-        }
-
+    // Helper function to load next batch of products
+    const loadNextBatch = (startIndex, cycle) => {
         setIsLoadingMore(true);
         
         setTimeout(() => {
-            // Calculate how many products we've already shown
-            const totalShown = displayedProducts.length;
-            const productsInCurrentCycle = totalShown % filteredProducts.length;
+            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredProducts.length);
+            const newProducts = filteredProducts.slice(startIndex, endIndex);
             
-            // Determine how many more products to add
-            const remainingInCycle = filteredProducts.length - productsInCurrentCycle;
-            const itemsToAdd = Math.min(ITEMS_PER_PAGE, remainingInCycle);
-            
-            // Get next batch of products
-            let newProducts = [];
-            
-            if (itemsToAdd > 0) {
-                // Add remaining products from current cycle
-                newProducts = filteredProducts.slice(productsInCurrentCycle, productsInCurrentCycle + itemsToAdd);
-            }
-            
-            // If we need more products to fill the batch, start a new cycle
-            if (newProducts.length < ITEMS_PER_PAGE) {
-                const additionalNeeded = ITEMS_PER_PAGE - newProducts.length;
-                
-                // Optionally shuffle for variety in new cycles
-                const nextCycleProducts = sortOption === 'random' || sortOption === '' ? 
-                    shuffleArray(filteredProducts) : filteredProducts;
-                
-                const additionalProducts = nextCycleProducts.slice(0, additionalNeeded);
-                newProducts = [...newProducts, ...additionalProducts];
-                
-                setCurrentCycle(prev => prev + 1);
-            }
-
-            // Add unique keys to distinguish between cycles
+            // Add unique keys to distinguish between cycles and positions
             const productsWithCycleKeys = newProducts.map((product, index) => ({
                 ...product,
-                cycleKey: `cycle-${currentCycle}-${product.id}-${totalShown + index}`
+                cycleKey: `cycle-${cycle}-${product.id}-${startIndex + index}`
             }));
 
             setDisplayedProducts(prev => [...prev, ...productsWithCycleKeys]);
+            setCurrentIndex(endIndex);
             setIsLoadingMore(false);
-        }, 300); // Reduced delay for smoother experience
-    }, [filteredProducts, displayedProducts, isLoadingMore, currentCycle, sortOption, isResting, hasScrolledInRest]);
+        }, 300);
+    };
 
     // Ref callback for intersection observer
     const lastProductElementRef = useCallback(node => {
-        if (isLoadingMore) return;
+        if (isLoadingMore || isWaitingForNextCycle) return;
         if (observer.current) observer.current.disconnect();
         
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && !isResting) {
+            if (entries[0].isIntersecting) {
                 loadMoreProducts();
             }
         }, {
             threshold: 0.1,
-            rootMargin: '200px' // Increased margin for smoother loading
+            rootMargin: '200px'
         });
         
         if (node) observer.current.observe(node);
-    }, [isLoadingMore, loadMoreProducts, isResting]);
-
-    // Handle scroll during rest period
-    useEffect(() => {
-        if (isResting) {
-            const handleScroll = () => {
-                if (!hasScrolledInRest) {
-                    setHasScrolledInRest(true);
-                }
-            };
-
-            window.addEventListener('scroll', handleScroll);
-            return () => window.removeEventListener('scroll', handleScroll);
-        }
-    }, [isResting, hasScrolledInRest]);
+    }, [isLoadingMore, loadMoreProducts, isWaitingForNextCycle]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -189,11 +161,12 @@ export default function Home() {
     // Reset displayed products when filters change
     useEffect(() => {
         setDisplayedProducts([]);
+        setCurrentIndex(0);
         setCurrentCycle(0);
-        setIsResting(false);
-        setHasScrolledInRest(false);
+        setIsWaitingForNextCycle(false);
+        setShowThreeDotLoader(false);
         
-        // Load initial batch with cycle keys
+        // Load initial batch
         if (filteredProducts.length > 0) {
             const initialProducts = filteredProducts.slice(0, ITEMS_PER_PAGE);
             const productsWithKeys = initialProducts.map((product, index) => ({
@@ -201,6 +174,7 @@ export default function Home() {
                 cycleKey: `cycle-0-${product.id}-${index}`
             }));
             setDisplayedProducts(productsWithKeys);
+            setCurrentIndex(initialProducts.length);
         }
     }, [filteredProducts]);
 
@@ -284,6 +258,17 @@ export default function Home() {
     const closeImageModal = () => {
         setIsImageModalOpen(false);
     };
+
+    // Three dot loader component
+    const ThreeDotLoader = () => (
+        <div className="flex justify-center py-8">
+            <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+        </div>
+    );
 
     if (isLoading) {
         return <LoadingScreen message="Loading products..." />;
@@ -375,7 +360,7 @@ export default function Home() {
                                         {categories.map(category => (
                                             <option key={category} value={category}>
                                                 {category}
-                            </option>
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
@@ -454,8 +439,11 @@ export default function Home() {
                             ))}
                         </div>
 
-                        {/* Loading more indicator or rest message */}
-                        {isLoadingMore && !isResting && (
+                        {/* Three dot loader for cycle transitions */}
+                        {showThreeDotLoader && <ThreeDotLoader />}
+
+                        {/* Regular loading indicator */}
+                        {isLoadingMore && !showThreeDotLoader && (
                             <div className="mt-8 flex justify-center">
                                 <div className="flex items-center space-x-2">
                                     <svg className="h-6 w-6 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -463,16 +451,6 @@ export default function Home() {
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                                     </svg>
                                     <span className="text-gray-600">Loading more products...</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Rest period message */}
-                        {isResting && (
-                            <div className="mt-8 mb-8 flex justify-center">
-                                <div className="text-center px-6 py-4 bg-blue-50 rounded-lg border border-blue-200">
-                                    <p className="text-blue-700 font-medium">You've browsed quite a bit! 🛍️</p>
-                                    <p className="text-blue-600 text-sm mt-1">Scroll down to continue browsing more products</p>
                                 </div>
                             </div>
                         )}
