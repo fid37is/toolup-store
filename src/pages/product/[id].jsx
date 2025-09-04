@@ -1,91 +1,133 @@
-// src/pages/product/[id].jsx - Product page with auth check integration
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/router';
-import Head from 'next/head';
 import Image from 'next/image';
 import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import AuthCheckModal from '../../components/AuthCheckModal';
-import useAuthCheck from '../../hooks/useAuthCheck';
-import '../../styles/globals.css'
+import LoadingScreen from '../../components/LoadingScreen';
+import SocialHead from '../../components/SocialHead';
+import { formatNairaPrice } from '../../utils/currency-formatter';
+import { generateProductSocialData } from '../../utils/socialUtils';
+import { toast } from 'sonner';
+import { Share } from 'lucide-react';
+
+// Lazy load non-critical components
+const AuthFlowModal = lazy(() => import('../../components/AuthFlowModal'));
+const ShareModal = lazy(() => import('../../components/ShareModal'));
 
 export default function ProductDetail() {
     const router = useRouter();
     const { id } = router.query;
-    const { 
-        isAuthenticated, 
-        isAuthCheckModalOpen, 
-        initiateAuthCheck, 
-        handleContinueAsGuest, 
-        closeAuthCheckModal 
-    } = useAuthCheck();
 
     const [product, setProduct] = useState(null);
     const [quantity, setQuantity] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [addedToCartMessage, setAddedToCartMessage] = useState('');
     const [generatedDescription, setGeneratedDescription] = useState('');
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [shareButtonRef, setShareButtonRef] = useState(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [socialData, setSocialData] = useState(null);
 
     const quantityNum = Number(product?.quantity || 0);
     const isOutOfStock = quantityNum === 0;
     const isLowStock = quantityNum > 0 && quantityNum <= 4;
 
+    // Check authentication status on mount
     useEffect(() => {
-        // Only fetch when we have an ID
-        if (!id) {
-            return;
+        const checkAuth = () => {
+            const authStatus = localStorage.getItem('isAuthenticated') === 'true';
+            setIsAuthenticated(authStatus);
+        };
+        checkAuth();
+    }, []);
+
+    // Generate social data when product is loaded
+    useEffect(() => {
+        if (product && router.isReady) {
+            try {
+                // Create a more robust social data object
+                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                               (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
+                
+                const productUrl = `${baseUrl}/products/${id}`;
+                
+                const data = {
+                    title: `${product.name} - ToolUp Store`,
+                    description: generatedDescription || product.description || `${product.name} available at ToolUp Store for ₦${product.price?.toLocaleString()}. Quality tools and equipment for professionals and enthusiasts.`,
+                    imageUrl: product.imageUrl || `${baseUrl}/logo-2.png`,
+                    url: productUrl,
+                    type: 'product',
+                    price: product.price,
+                    availability: isOutOfStock ? 'out_of_stock' : 'in_stock',
+                    productCategory: product.category || 'Tools'
+                };
+                
+                setSocialData(data);
+            } catch (error) {
+                console.error('Error generating social data:', error);
+                // Fallback social data
+                setSocialData({
+                    title: 'ToolUp Store - Quality Tools & Equipment',
+                    description: 'Premium tools and equipment for professionals and enthusiasts',
+                    imageUrl: '/logo-2.png',
+                    url: typeof window !== 'undefined' ? window.location.href : '',
+                    type: 'website'
+                });
+            }
         }
+    }, [product, router.isReady, id, generatedDescription, isOutOfStock]);
+
+    useEffect(() => {
+        if (!id || !router.isReady) return;
 
         const fetchProduct = async () => {
             try {
                 setIsLoading(true);
-                console.log(`Fetching product with ID: ${id}`);
-                const response = await fetch(`/api/products/${id}`);
+                const controller = new AbortController();
+                const signal = controller.signal;
+
+                const response = await fetch(`/api/products/${id}`, { signal });
 
                 if (!response.ok) {
                     throw new Error(`Error: ${response.status}`);
                 }
 
                 const data = await response.json();
-                console.log('Product data received:', data);
                 setProduct(data);
-
-                // Generate AI-like description based on product data
                 generateProductDescription(data);
+
+                return () => {
+                    controller.abort();
+                };
             } catch (err) {
-                console.error(`Failed to fetch product ${id}:`, err);
-                setError(err);
+                if (err.name !== 'AbortError') {
+                    console.error(`Failed to fetch product ${id}:`, err);
+                    setError(err);
+                }
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchProduct();
-    }, [id]);
+    }, [id, router.isReady]);
 
     // Function to generate AI-like description
     const generateProductDescription = (productData) => {
         if (!productData) return;
 
-        // Get product details
         const { name, category, price } = productData;
 
-        // Array of possible description templates
         const descriptionTemplates = [
             `The ${name} is a premium quality ${category || 'tool'} designed for both professionals and enthusiasts. Featuring exceptional durability and performance, this ${price > 100 ? 'high-end' : 'affordable'} product will exceed your expectations while maintaining excellent value for money.`,
 
             `Discover the versatility of our ${name}, a standout ${category || 'product'} that combines innovative design with practical functionality. Whether you're a seasoned professional or just starting out, this ${price > 100 ? 'investment-grade' : 'budget-friendly'} tool delivers reliable performance for all your projects.`,
 
             `Meet the ${name} - the perfect addition to any ${category || 'toolbox'}. With its ergonomic design and precision engineering, this ${price > 100 ? 'professional-grade' : 'cost-effective'} solution offers unmatched performance and durability that will serve you for years to come.`,
-
-            `Engineered for excellence, the ${name} represents the pinnacle of ${category || 'tool'} design. Featuring premium materials and expert craftsmanship, this ${price > 100 ? 'professional' : 'accessible'} product combines power, precision, and reliability in one comprehensive package.`,
-
-            `The ${name} stands out in the ${category || 'tools'} market for its exceptional quality and attention to detail. This ${price > 100 ? 'premium' : 'value-oriented'} product has been designed with the end-user in mind, ensuring comfort, efficiency, and outstanding results every time.`
         ];
 
-        // Select a random description template
         const randomIndex = Math.floor(Math.random() * descriptionTemplates.length);
         setGeneratedDescription(descriptionTemplates[randomIndex]);
     };
@@ -98,41 +140,32 @@ export default function ProductDetail() {
     };
 
     const handleAddToCart = async () => {
+        if (!isAuthenticated) {
+            toast.error('Please login to add items to your cart');
+            return;
+        }
+
         if (!product || !id) {
             console.error("Product or product ID is missing");
             return;
         }
 
         try {
-            console.log("Adding to cart:", {
-                productId: id,
-                name: product.name,
-                price: product.price,
-                imageUrl: product.imageUrl,
-                quantity: quantity
-            });
-
-            // First, fetch the current cart items
             let cartItems = [];
             try {
                 const storedCart = localStorage.getItem('cart');
                 if (storedCart) {
                     cartItems = JSON.parse(storedCart);
-                    console.log("Existing cart items:", cartItems);
                 }
             } catch (err) {
                 console.error('Error parsing stored cart:', err);
             }
 
-            // Check if product already exists in cart
             const existingItemIndex = cartItems.findIndex(item => item.productId === id);
 
             if (existingItemIndex >= 0) {
-                // Update quantity if item already exists
                 cartItems[existingItemIndex].quantity += quantity;
-                console.log("Updated existing item quantity:", cartItems[existingItemIndex]);
             } else {
-                // Add new item
                 cartItems.push({
                     productId: id,
                     name: product.name,
@@ -140,14 +173,10 @@ export default function ProductDetail() {
                     imageUrl: product.imageUrl,
                     quantity: quantity
                 });
-                console.log("Added new item to cart");
             }
 
-            // Save to localStorage
-            console.log("Saving cart to localStorage:", cartItems);
             localStorage.setItem('cart', JSON.stringify(cartItems));
 
-            // Make API call (in a real app, this would save to database)
             try {
                 const response = await fetch('/api/cart', {
                     method: 'POST',
@@ -159,25 +188,15 @@ export default function ProductDetail() {
                         quantity: quantity
                     }),
                 });
-                console.log("API response:", response.ok ? "success" : "failed");
             } catch (err) {
-                console.log("API call failed, but cart was saved to localStorage");
+                // API call failed, but cart was saved to localStorage
             }
 
-            // Show success message
-            setAddedToCartMessage('Item added to cart successfully!');
-
-            // Clear the message after 3 seconds
-            setTimeout(() => {
-                setAddedToCartMessage('');
-            }, 3000);
-
-            // Notify other components that cart has been updated
-            console.log("Dispatching cartUpdated event");
+            toast.success(`${product.name} added to cart`);
             window.dispatchEvent(new CustomEvent('cartUpdated'));
         } catch (error) {
             console.error('Error adding to cart:', error);
-            alert('Failed to add item to cart. Please try again.');
+            toast.error('Failed to add item to cart. Please try again.');
         }
     };
 
@@ -187,8 +206,15 @@ export default function ProductDetail() {
             return;
         }
 
+        if (isAuthenticated) {
+            directCheckout();
+        } else {
+            setIsAuthModalOpen(true);
+        }
+    };
+
+    const directCheckout = () => {
         try {
-            // Create a checkout item for this single product
             const checkoutItem = {
                 productId: id,
                 name: product.name,
@@ -197,36 +223,94 @@ export default function ProductDetail() {
                 quantity: quantity
             };
 
-            // Store this as the direct purchase item
             localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
-
-            // Initiate auth check instead of direct navigation
-            initiateAuthCheck('/checkout?mode=direct');
-            
+            router.push('/checkout?mode=direct');
         } catch (error) {
             console.error('Error processing direct purchase:', error);
-            alert('Failed to proceed to checkout. Please try again.');
+            toast.error('Failed to proceed to checkout. Please try again.');
         }
     };
 
+    const handleGuestCheckout = () => {
+        localStorage.setItem('guestCheckout', 'true');
+        setIsAuthModalOpen(false);
+        directCheckout();
+    };
+
+    const handleLoginRegister = () => {
+        setIsAuthModalOpen(false);
+
+        const checkoutItem = {
+            productId: id,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.imageUrl,
+            quantity: quantity
+        };
+
+        localStorage.setItem('directPurchaseItem', JSON.stringify(checkoutItem));
+        router.push(`/auth?redirect=${encodeURIComponent('/checkout?mode=direct')}`);
+    };
+
+    const handleShare = (event) => {
+        // Get button position for modal positioning
+        if (event?.currentTarget) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setShareButtonRef({
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+            });
+        }
+        setIsShareModalOpen(true);
+    };
+
+    const closeShareModal = () => {
+        setIsShareModalOpen(false);
+        setShareButtonRef(null);
+    };
+
+    const closeAuthModal = () => {
+        setIsAuthModalOpen(false);
+    };
+
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                toast.success('Link copied to clipboard!');
+            })
+            .catch(err => {
+                console.error('Could not copy text: ', err);
+                toast.error('Failed to copy link');
+            });
+    };
+
+    const handleCopyLink = () => {
+        const urlToCopy = socialData?.url || (typeof window !== 'undefined' ? window.location.href : '');
+        copyToClipboard(urlToCopy);
+        closeShareModal();
+    };
+
+    // Don't render anything until router is ready and we have the id
+    if (!router.isReady || !id) {
+        return <LoadingScreen message="Loading..." />;
+    }
+
     if (isLoading) {
-        return (
-            <div className="flex min-h-screen flex-col">
-                <Header />
-                <div className="container mx-auto flex flex-grow items-center justify-center py-16">
-                    <div className="text-center">
-                        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-                        <p className="text-gray-600">Loading product details...</p>
-                    </div>
-                </div>
-                <Footer />
-            </div>
-        );
+        return <LoadingScreen message="Loading product details..." />;
     }
 
     if (error || !product) {
         return (
             <div className="flex min-h-screen flex-col">
+                <SocialHead
+                    title="Product Not Found - ToolUp Store"
+                    description="The product you're looking for could not be found"
+                    imageUrl="/logo-2.png"
+                    url={typeof window !== 'undefined' ? window.location.href : ''}
+                    type="website"
+                />
                 <Header />
                 <div className="container mx-auto my-16 px-4 flex-grow">
                     <div className="rounded-lg bg-red-50 p-6 text-center">
@@ -237,7 +321,7 @@ export default function ProductDetail() {
                         </p>
                         <Link
                             href="/"
-                            className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+                            className="rounded-lg bg-primary-500 px-6 py-2 text-white hover:bg-primary-700"
                         >
                             Return to Home
                         </Link>
@@ -250,24 +334,42 @@ export default function ProductDetail() {
 
     return (
         <div className="flex min-h-screen flex-col">
-            <Head>
-                <title>{product.name} | ToolUp Store</title>
-                <meta name="description" content={generatedDescription || `Buy ${product.name} at ToolUp Store`} />
-            </Head>
+            {/* Enhanced Social Head with all meta tags */}
+            {socialData && (
+                <SocialHead
+                    title={socialData.title}
+                    description={socialData.description}
+                    imageUrl={socialData.imageUrl}
+                    url={socialData.url}
+                    type={socialData.type}
+                    price={socialData.price}
+                    availability={socialData.availability}
+                    productCategory={socialData.productCategory}
+                />
+            )}
 
             <Header />
 
             <main className="container mx-auto flex-grow px-4 py-8">
-                <div className="mb-6">
+                <div className="mb-6 flex justify-between">
                     <Link
                         href="/"
-                        className="inline-flex items-center text-blue-600 hover:underline"
+                        className="inline-flex items-center text-primary-500 hover:underline"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                         </svg>
                         Back to Products
                     </Link>
+
+                    <button
+                        onClick={handleShare}
+                        className="inline-flex items-center text-primary-500 hover:underline"
+                        aria-label="Share this product"
+                    >
+                        <Share className="w-4 h-4 mr-2" />
+                        Share
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -280,7 +382,8 @@ export default function ProductDetail() {
                             fill
                             sizes="(max-width: 768px) 100vw, 50vw"
                             priority
-                            unoptimized={true}
+                            loading="eager"
+                            quality={80}
                         />
                     </div>
 
@@ -295,7 +398,7 @@ export default function ProductDetail() {
                         )}
 
                         <div className="mb-6 mt-4">
-                            <p className="text-3xl font-bold text-gray-900">${parseFloat(product.price).toFixed(2)}</p>
+                            <p className="text-3xl font-bold text-gray-900">{formatNairaPrice(product.price)}</p>
 
                             <div className="mt-4">
                                 {isOutOfStock ? (
@@ -314,22 +417,6 @@ export default function ProductDetail() {
                             </div>
                         </div>
 
-                        {/* Success message */}
-                        {addedToCartMessage && (
-                            <div className="mb-4 rounded-md bg-green-50 p-4">
-                                <div className="flex">
-                                    <div className="flex-shrink-0">
-                                        <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                    <div className="ml-3">
-                                        <p className="text-sm font-medium text-green-800">{addedToCartMessage}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {/* AI-Generated Description */}
                         <div className="mb-6">
                             <h2 className="mb-2 text-lg font-medium">Description</h2>
@@ -343,7 +430,7 @@ export default function ProductDetail() {
                             </div>
                         )}
 
-                        {/* Quantity Selector - Simplified without increment/decrement buttons */}
+                        {/* Quantity Selector */}
                         <div className="mb-6">
                             <label htmlFor="quantity" className="mb-2 block text-sm font-medium text-gray-700">
                                 Quantity
@@ -367,11 +454,12 @@ export default function ProductDetail() {
                         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <button
                                 onClick={handleAddToCart}
-                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
+                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock || !isAuthenticated
                                     ? 'cursor-not-allowed bg-gray-400'
-                                    : 'bg-blue-600 hover:bg-blue-700'
+                                    : 'bg-primary-500 hover:bg-primary-700'
                                     }`}
-                                disabled={isOutOfStock}
+                                disabled={isOutOfStock || !isAuthenticated}
+                                title={!isAuthenticated ? "Login to add items to cart" : ""}
                             >
                                 Add to Cart
                             </button>
@@ -391,15 +479,35 @@ export default function ProductDetail() {
                 </div>
             </main>
 
+            {/* Modals */}
+            <Suspense fallback={<div>Loading...</div>}>
+                {isAuthModalOpen && (
+                    <AuthFlowModal
+                        isOpen={isAuthModalOpen}
+                        onClose={closeAuthModal}
+                        onGuestCheckout={handleGuestCheckout}
+                        onLoginRegister={handleLoginRegister}
+                    />
+                )}
+
+                {isShareModalOpen && product && socialData && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={closeShareModal}
+                        productName={product.name}
+                        shareUrl={socialData.url}
+                        imageUrl={product.imageUrl}
+                        product={{
+                            ...product,
+                            id: id // Ensure ID is included
+                        }}
+                        buttonPosition={shareButtonRef}
+                        onCopyLink={handleCopyLink}
+                    />
+                )}
+            </Suspense>
+
             <Footer />
-            
-            {/* Auth Check Modal */}
-            <AuthCheckModal 
-                isOpen={isAuthCheckModalOpen}
-                onClose={closeAuthCheckModal}
-                onContinueAsGuest={handleContinueAsGuest}
-                redirectPath="/checkout?mode=direct"
-            />
         </div>
     );
 }

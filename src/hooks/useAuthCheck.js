@@ -1,58 +1,48 @@
-// src/hooks/useAuthCheck.js - Simple fix for auth check
-import { useState } from 'react';
-import { useRouter } from 'next/router';
+// src/hooks/useAuthCheck.js
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
-const useAuthCheck = () => {
-    const router = useRouter();
-    const [isAuthCheckModalOpen, setIsAuthCheckModalOpen] = useState(false);
-    const [redirectPath, setRedirectPath] = useState(null);
-    
-    // Check if user is authenticated
-    const isAuthenticated = () => {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-        return !!token;
-    };
+/**
+ * Hook to check Firebase authentication state and sync it with localStorage.
+ */
+export default function useAuthCheck() {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    // Initialize the auth check process
-    const initiateAuthCheck = (path) => {
-        // If user is already authenticated, redirect immediately
-        if (isAuthenticated()) {
-            router.push(path);
-            return;
-        }
-        
-        // Store the redirect path and open the modal
-        setRedirectPath(path);
-        setIsAuthCheckModalOpen(true);
-    };
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+            if (firebaseUser) {
+                const userObj = {
+                    id: firebaseUser.uid,
+                    name: firebaseUser.displayName || '',
+                    email: firebaseUser.email || '',
+                };
 
-    // Handle "Continue as Guest" option
-    const handleContinueAsGuest = () => {
-        // Set guest checkout flag
-        localStorage.setItem('guestCheckout', 'true');
-        
-        // Close modal and redirect
-        closeAuthCheckModal();
-        
-        // Redirect to the stored path
-        if (redirectPath) {
-            router.push(redirectPath);
-        }
-    };
+                setIsAuthenticated(true);
+                setUser(userObj);
+                localStorage.setItem('user', JSON.stringify(userObj));
+                localStorage.setItem('authToken', firebaseUser.accessToken || 'true');
+                localStorage.setItem('isAuthenticated', 'true');
+            } else {
+                setIsAuthenticated(false);
+                setUser(null);
+                localStorage.removeItem('user');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('isAuthenticated');
+            }
 
-    // Close the auth check modal
-    const closeAuthCheckModal = () => {
-        setIsAuthCheckModalOpen(false);
-    };
+            setLoading(false);
+        }, (error) => {
+            console.error('Error in onAuthStateChanged:', error);
+            setIsAuthenticated(false);
+            setUser(null);
+            setLoading(false);
+        });
 
-    return {
-        isAuthenticated: isAuthenticated(),
-        isAuthCheckModalOpen,
-        redirectPath,
-        initiateAuthCheck,
-        handleContinueAsGuest,
-        closeAuthCheckModal
-    };
-};
+        return () => unsubscribe();
+    }, []);
 
-export default useAuthCheck;
+    return { isAuthenticated, user, loading };
+}

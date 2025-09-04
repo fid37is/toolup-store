@@ -1,9 +1,20 @@
 // src/pages/_app.jsx
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { Toaster } from 'sonner';
 import '../styles/globals.css';
 
+// Import and initialize Firebase at app startup
+import { app } from '../lib/firebase';
+
 function MyApp({ Component, pageProps }) {
+    // Optionally add Firebase initialization logging if helpful for debugging
+    useEffect(() => {
+        if (app) {
+            console.log('Firebase initialized successfully in _app.jsx');
+        }
+    }, []);
+
     return (
         <>
             <Head>
@@ -11,7 +22,12 @@ function MyApp({ Component, pageProps }) {
                 <meta name="theme-color" content="#2563EB" />
                 <link rel="icon" href="/favicon.ico" />
             </Head>
+
+            {/* Render page */}
             <Component {...pageProps} />
+
+            {/* ✅ Notification container */}
+            <Toaster richColors position="top-right" />
         </>
     );
 }
