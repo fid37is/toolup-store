@@ -89,11 +89,8 @@ const UserAvatarDropdown = () => {
                 className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 aria-label="User menu"
             >
-<<<<<<< HEAD
             <span>User</span>
-=======
                 {userMenuOpen ? <MoreHorizontal /> : <MoreVertical />}
->>>>>>> 26cb4f9c032fc3582ae00cf603f8b27ebc274285
             </button>
 
             {userMenuOpen && (
