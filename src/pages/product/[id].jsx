@@ -7,9 +7,10 @@ import Footer from '../../components/Footer';
 import LoadingScreen from '../../components/LoadingScreen';
 import SocialHead from '../../components/SocialHead';
 import { formatNairaPrice } from '../../utils/currency-formatter';
-import { generateProductSocialData } from '../../utils/socialUtils';
 import { toast } from 'sonner';
 import { Share } from 'lucide-react';
+import { BannerAd, SidebarAd, NativeAd, FloatingAd } from '../../components/AdComponent';
+import { useAdManager } from '../../hooks/useAdManager';
 
 // Lazy load non-critical components
 const AuthFlowModal = lazy(() => import('../../components/AuthFlowModal'));
@@ -18,6 +19,9 @@ const ShareModal = lazy(() => import('../../components/ShareModal'));
 export default function ProductDetail() {
     const router = useRouter();
     const { id } = router.query;
+
+    // Ad management
+    const { adsEnabled, closeAd, shouldShowAd } = useAdManager();
 
     const [product, setProduct] = useState(null);
     const [quantity, setQuantity] = useState(1);
@@ -34,6 +38,44 @@ export default function ProductDetail() {
     const isOutOfStock = quantityNum === 0;
     const isLowStock = quantityNum > 0 && quantityNum <= 4;
 
+    // Ad data for product detail page
+    const adData = {
+        bannerTop: {
+            title: "🛠️ Complete Your Toolkit - Browse Related Products",
+            description: "Find complementary tools and accessories for your projects",
+            link: "/",
+            cta: "Browse All",
+            image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=32&h=32&fit=crop"
+        },
+        sidebar: {
+            title: "Professional Tool Care",
+            description: "Keep your tools in perfect condition with maintenance products",
+            link: "https://example.com/tool-care",
+            cta: "Shop Care Products",
+            backgroundImage: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400&h=300&fit=crop",
+            icon: "🔧"
+        },
+        native: {
+            title: "Recommended: Safety Equipment Bundle",
+            description: "Essential safety gear for any workshop. Protect yourself while using professional tools.",
+            category: "Safety Equipment",
+            image: "https://images.unsplash.com/photo-1576086213369-97a306d36557?w=400&h=300&fit=crop",
+            link: "https://example.com/safety-bundle",
+            cta: "View Bundle",
+            features: ["PPE Kit", "First Aid"],
+            rating: "4.7",
+            verified: true
+        },
+        floating: {
+            title: "Tool Warranty Extended",
+            description: "Protect your investment with extended warranty coverage",
+            image: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=80&h=80&fit=crop",
+            link: "https://example.com/warranty",
+            cta: "Learn More",
+            icon: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=32&h=32&fit=crop"
+        }
+    };
+
     // Check authentication status on mount
     useEffect(() => {
         const checkAuth = () => {
@@ -43,36 +85,42 @@ export default function ProductDetail() {
         checkAuth();
     }, []);
 
-    // Generate social data when product is loaded
+    // Generate enhanced social data when product is loaded
     useEffect(() => {
         if (product && router.isReady) {
             try {
-                // Create a more robust social data object
                 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
                                (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
                 
                 const productUrl = `${baseUrl}/products/${id}`;
                 
+                // Enhanced description for social sharing
+                const socialDescription = generatedDescription || 
+                    `${product.name} - ${formatNairaPrice(product.price)} at ToolUp Store. ${product.category ? `${product.category} - ` : ''}Professional quality tools and equipment. ${isOutOfStock ? 'Currently out of stock.' : 'In stock and ready to ship.'}`;
+                
                 const data = {
-                    title: `${product.name} - ToolUp Store`,
-                    description: generatedDescription || product.description || `${product.name} available at ToolUp Store for ₦${product.price?.toLocaleString()}. Quality tools and equipment for professionals and enthusiasts.`,
+                    title: `${product.name} | ToolUp Store - Professional Tools`,
+                    description: socialDescription,
                     imageUrl: product.imageUrl || `${baseUrl}/logo-2.png`,
                     url: productUrl,
                     type: 'product',
                     price: product.price,
-                    availability: isOutOfStock ? 'out_of_stock' : 'in_stock',
-                    productCategory: product.category || 'Tools'
+                    currency: 'NGN',
+                    availability: isOutOfStock ? 'out of stock' : 'in stock',
+                    productCategory: product.category || 'Tools',
+                    brand: 'ToolUp Store'
                 };
                 
                 setSocialData(data);
             } catch (error) {
                 console.error('Error generating social data:', error);
                 // Fallback social data
+                const fallbackUrl = typeof window !== 'undefined' ? window.location.href : '';
                 setSocialData({
                     title: 'ToolUp Store - Quality Tools & Equipment',
                     description: 'Premium tools and equipment for professionals and enthusiasts',
                     imageUrl: '/logo-2.png',
-                    url: typeof window !== 'undefined' ? window.location.href : '',
+                    url: fallbackUrl,
                     type: 'website'
                 });
             }
@@ -253,7 +301,6 @@ export default function ProductDetail() {
     };
 
     const handleShare = (event) => {
-        // Get button position for modal positioning
         if (event?.currentTarget) {
             const rect = event.currentTarget.getBoundingClientRect();
             setShareButtonRef({
@@ -334,21 +381,32 @@ export default function ProductDetail() {
 
     return (
         <div className="flex min-h-screen flex-col">
-            {/* Enhanced Social Head with all meta tags */}
+            {/* Enhanced Social Head with proper Open Graph tags */}
             {socialData && (
                 <SocialHead
                     title={socialData.title}
                     description={socialData.description}
                     imageUrl={socialData.imageUrl}
                     url={socialData.url}
-                    type={socialData.type}
+                    type="product"
                     price={socialData.price}
+                    currency={socialData.currency}
                     availability={socialData.availability}
                     productCategory={socialData.productCategory}
+                    brand={socialData.brand}
                 />
             )}
 
             <Header />
+
+            {/* Top Banner Ad */}
+            {shouldShowAd('product-banner-top') && (
+                <BannerAd 
+                    adData={adData.bannerTop} 
+                    position="top"
+                    onClose={() => closeAd('product-banner-top')} 
+                />
+            )}
 
             <main className="container mx-auto flex-grow px-4 py-8">
                 <div className="mb-6 flex justify-between">
@@ -372,112 +430,157 @@ export default function ProductDetail() {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                    {/* Product Image */}
-                    <div className="relative min-h-[300px] overflow-hidden rounded-lg bg-gray-100 md:min-h-[500px]">
-                        <Image
-                            src={product.imageUrl || '/placeholder-product.jpg'}
-                            alt={product.name}
-                            className="object-contain"
-                            fill
-                            sizes="(max-width: 768px) 100vw, 50vw"
-                            priority
-                            loading="eager"
-                            quality={80}
-                        />
-                    </div>
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                    {/* Main Product Content - Takes up 2 columns */}
+                    <div className="lg:col-span-2">
+                        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                            {/* Product Image */}
+                            <div className="relative min-h-[300px] overflow-hidden rounded-lg bg-gray-100 md:min-h-[500px]">
+                                <Image
+                                    src={product.imageUrl || '/placeholder-product.jpg'}
+                                    alt={product.name}
+                                    className="object-contain"
+                                    fill
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                    priority
+                                    loading="eager"
+                                    quality={80}
+                                />
+                            </div>
 
-                    {/* Product Info */}
-                    <div>
-                        <h1 className="mb-2 text-3xl font-bold text-gray-900">{product.name}</h1>
+                            {/* Product Info */}
+                            <div>
+                                <h1 className="mb-2 text-3xl font-bold text-gray-900">{product.name}</h1>
 
-                        {product.category && (
-                            <p className="mb-4 text-sm text-gray-500">
-                                Category: <span className="font-medium">{product.category}</span>
-                            </p>
-                        )}
+                                {product.category && (
+                                    <p className="mb-4 text-sm text-gray-500">
+                                        Category: <span className="font-medium">{product.category}</span>
+                                    </p>
+                                )}
 
-                        <div className="mb-6 mt-4">
-                            <p className="text-3xl font-bold text-gray-900">{formatNairaPrice(product.price)}</p>
+                                <div className="mb-6 mt-4">
+                                    <p className="text-3xl font-bold text-gray-900">{formatNairaPrice(product.price)}</p>
 
-                            <div className="mt-4">
-                                {isOutOfStock ? (
-                                    <span className="inline-block rounded-full bg-red-100 px-4 py-1 text-sm font-medium text-red-800">
-                                        Out of Stock
-                                    </span>
-                                ) : isLowStock ? (
-                                    <span className="inline-block rounded-full bg-amber-100 px-4 py-1 text-sm font-medium text-amber-800">
-                                        Only {product.quantity} left
-                                    </span>
-                                ) : (
-                                    <span className="inline-block rounded-full bg-green-100 px-4 py-1 text-sm font-medium text-green-800">
-                                        In Stock
-                                    </span>
+                                    <div className="mt-4">
+                                        {isOutOfStock ? (
+                                            <span className="inline-block rounded-full bg-red-100 px-4 py-1 text-sm font-medium text-red-800">
+                                                Out of Stock
+                                            </span>
+                                        ) : isLowStock ? (
+                                            <span className="inline-block rounded-full bg-amber-100 px-4 py-1 text-sm font-medium text-amber-800">
+                                                Only {product.quantity} left
+                                            </span>
+                                        ) : (
+                                            <span className="inline-block rounded-full bg-green-100 px-4 py-1 text-sm font-medium text-green-800">
+                                                In Stock
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Quantity Selector */}
+                                <div className="mb-6">
+                                    <label htmlFor="quantity" className="mb-2 block text-sm font-medium text-gray-700">
+                                        Quantity
+                                    </label>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="number"
+                                            id="quantity"
+                                            name="quantity"
+                                            min="1"
+                                            max={product.quantity || 1}
+                                            value={quantity}
+                                            onChange={handleQuantityChange}
+                                            disabled={isOutOfStock}
+                                            className="h-10 w-24 rounded-lg border border-gray-300 bg-white py-2 px-3 text-center text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <button
+                                        onClick={handleAddToCart}
+                                        className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock || !isAuthenticated
+                                            ? 'cursor-not-allowed bg-gray-400'
+                                            : 'bg-primary-500 hover:bg-primary-700'
+                                            }`}
+                                        disabled={isOutOfStock || !isAuthenticated}
+                                        title={!isAuthenticated ? "Login to add items to cart" : ""}
+                                    >
+                                        Add to Cart
+                                    </button>
+
+                                    <button
+                                        onClick={handleBuyNow}
+                                        className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
+                                            ? 'cursor-not-allowed bg-gray-400'
+                                            : 'bg-green-600 hover:bg-green-700'
+                                            }`}
+                                        disabled={isOutOfStock}
+                                    >
+                                        Buy Now
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Product Description */}
+                        <div className="mt-8">
+                            <h2 className="mb-4 text-2xl font-bold text-gray-900">Description</h2>
+                            <div className="prose max-w-none">
+                                <p className="text-gray-700 leading-relaxed">
+                                    {generatedDescription || product.description || "Product description unavailable."}
+                                </p>
+
+                                {product.specs && (
+                                    <div className="mt-6">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Specifications</h3>
+                                        <p className="text-gray-700">{product.specs}</p>
+                                    </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* AI-Generated Description */}
-                        <div className="mb-6">
-                            <h2 className="mb-2 text-lg font-medium">Description</h2>
-                            <p className="text-gray-700">{generatedDescription || product.description || "Product description unavailable."}</p>
-                        </div>
-
-                        {product.specs && (
-                            <div className="mb-6">
-                                <h2 className="mb-2 text-lg font-medium">Specifications</h2>
-                                <p className="text-gray-700">{product.specs}</p>
+                        {/* Native Ad in Description Area */}
+                        {shouldShowAd('product-native') && (
+                            <div className="mt-8">
+                                <NativeAd adData={adData.native} />
                             </div>
                         )}
+                    </div>
 
-                        {/* Quantity Selector */}
-                        <div className="mb-6">
-                            <label htmlFor="quantity" className="mb-2 block text-sm font-medium text-gray-700">
-                                Quantity
-                            </label>
-                            <div className="flex items-center">
-                                <input
-                                    type="number"
-                                    id="quantity"
-                                    name="quantity"
-                                    min="1"
-                                    max={product.quantity || 1}
-                                    value={quantity}
-                                    onChange={handleQuantityChange}
-                                    disabled={isOutOfStock}
-                                    className="h-10 w-24 rounded-lg border border-gray-300 bg-white py-2 px-3 text-center text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100"
-                                />
-                            </div>
-                        </div>
+                    {/* Sidebar - Takes up 1 column */}
+                    <div className="lg:col-span-1 space-y-6">
+                        {/* Sidebar Ad */}
+                        {shouldShowAd('product-sidebar') && (
+                            <SidebarAd adData={adData.sidebar} size="large" />
+                        )}
 
-                        {/* Action Buttons */}
-                        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <button
-                                onClick={handleAddToCart}
-                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock || !isAuthenticated
-                                    ? 'cursor-not-allowed bg-gray-400'
-                                    : 'bg-primary-500 hover:bg-primary-700'
-                                    }`}
-                                disabled={isOutOfStock || !isAuthenticated}
-                                title={!isAuthenticated ? "Login to add items to cart" : ""}
-                            >
-                                Add to Cart
-                            </button>
-
-                            <button
-                                onClick={handleBuyNow}
-                                className={`rounded-lg px-6 py-3 font-medium text-white transition-colors ${isOutOfStock
-                                    ? 'cursor-not-allowed bg-gray-400'
-                                    : 'bg-green-600 hover:bg-green-700'
-                                    }`}
-                                disabled={isOutOfStock}
-                            >
-                                Buy Now
+                        {/* Additional product info or related products could go here */}
+                        <div className="bg-gray-50 rounded-lg p-4">
+                            <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
+                            <p className="text-sm text-gray-600 mb-3">
+                                Have questions about this product? Our team is here to help.
+                            </p>
+                            <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                                Contact Support
                             </button>
                         </div>
                     </div>
                 </div>
             </main>
+
+            <Footer />
+
+            {/* Floating Ad */}
+            {shouldShowAd('product-floating') && (
+                <FloatingAd 
+                    adData={adData.floating}
+                    onClose={() => closeAd('product-floating')} 
+                />
+            )}
 
             {/* Modals */}
             <Suspense fallback={<div>Loading...</div>}>
@@ -499,15 +602,13 @@ export default function ProductDetail() {
                         imageUrl={product.imageUrl}
                         product={{
                             ...product,
-                            id: id // Ensure ID is included
+                            id: id
                         }}
                         buttonPosition={shareButtonRef}
                         onCopyLink={handleCopyLink}
                     />
                 )}
             </Suspense>
-
-            <Footer />
         </div>
     );
 }

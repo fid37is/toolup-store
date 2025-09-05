@@ -10,7 +10,7 @@ export const theme = {
       primary: {
         400: '#004099', // lighter blue
         500: '#003380', // main blue
-        700: '#00205b', // darker blue
+        700: '#00334e', // darker blue
       },
       accent: {
         400: '#ffcc66', // lighter gold
