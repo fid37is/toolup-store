@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import logo from '/public/favy.png'; // Make sure this is placed in the /public folder
+import logo from '/public/logo-2.png'; // Make sure this is placed in the /public folder
 
 export default function LoadingScreen({ message = 'Loading...' }) {
     // Create subtle ripple rings with varying sizes and delays

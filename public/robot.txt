@@ -1,0 +1,51 @@
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /checkout/success
+Disallow: /checkout/cancel
+Crawl-delay: 1
+
+# Sitemaps
+Sitemap: https://www.toolup.store/sitemap.xml
+Sitemap: https://www.toolup.store/sitemap-products.xml
+
+# Major search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
+
+# Social media bots (important for link previews)
+User-agent: facebookexternalhit
+Allow: /
+Crawl-delay: 0
+
+User-agent: Twitterbot
+Allow: /
+Crawl-delay: 0
+
+User-agent: WhatsApp
+Allow: /
+Crawl-delay: 0
+
+User-agent: LinkedInBot
+Allow: /
+Crawl-delay: 0
+
+User-agent: TelegramBot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Pinterest
+Allow: /
+Crawl-delay: 0
+

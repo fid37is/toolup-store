@@ -51,6 +51,43 @@ export default function Home() {
   const [hasScrolledInRest, setHasScrolledInRest] = useState(false);
   const observer = useRef();
 
+  // Dynamic page metadata based on current state
+  const getPageMetadata = () => {
+    const baseTitle = 'ToolUp Store - Top grade Gadgets, Phones and Accessories';
+    const baseDescription = 'Shop quality electronic gadgets for professionals and DIY enthusiasts at ToolUp Store. Find the latest phones, gadgets, and accessories in Port Harcourt, Nigeria.';
+    
+    let dynamicTitle = baseTitle;
+    let dynamicDescription = baseDescription;
+    let keywords = ['gadgets', 'phones', 'accessories', 'electronics', 'toolup store', 'port harcourt', 'nigeria'];
+    
+    // Customize based on search/filters
+    if (searchQuery.trim()) {
+      dynamicTitle = `Search: ${searchQuery} - ToolUp Store`;
+      dynamicDescription = `Find ${searchQuery} and more quality products at ToolUp Store. ${baseDescription}`;
+      keywords.unshift(searchQuery.toLowerCase());
+    }
+    
+    if (selectedCategory) {
+      dynamicTitle = `${selectedCategory} - ToolUp Store`;
+      dynamicDescription = `Shop ${selectedCategory.toLowerCase()} at ToolUp Store. ${baseDescription}`;
+      keywords.unshift(selectedCategory.toLowerCase());
+    }
+    
+    if (searchQuery.trim() && selectedCategory) {
+      dynamicTitle = `${searchQuery} in ${selectedCategory} - ToolUp Store`;
+      dynamicDescription = `Find ${searchQuery} in ${selectedCategory.toLowerCase()} category at ToolUp Store. ${baseDescription}`;
+    }
+    
+    return {
+      title: dynamicTitle,
+      description: dynamicDescription,
+      keywords: keywords,
+      url: '/', // Homepage URL
+      imageUrl: '/og-homepage.jpg', // Your homepage social media image
+      type: 'website'
+    };
+  };
+
   // Utility function to shuffle array randomly
   const shuffleArray = (array) => {
     const shuffled = [...array];
@@ -317,6 +354,12 @@ export default function Home() {
   if (error) {
     return (
       <div>
+        <SocialHead
+          title="Error - ToolUp Store"
+          description="Sorry, we encountered an error while loading our products. Please try again later."
+          url="/"
+          type="website"
+        />
         <Header />
         <div className="container mx-auto my-16 px-4">
           <div className="rounded-lg bg-red-50 p-6 text-center">
@@ -338,13 +381,29 @@ export default function Home() {
   }
 
   const displayedProductsWithAds = getDisplayedProductsWithAds();
+  const pageMetadata = getPageMetadata();
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <Head>
-        <title>ToolUp Store - Professional Tools & Equipment</title>
-        <meta name="description" content="Shop quality tools and equipment for professionals and DIY enthusiasts at ToolUp Store." />
-      </Head>
+      {/* Replace the basic Head component with SocialHead */}
+      <SocialHead
+        title={pageMetadata.title}
+        description={pageMetadata.description}
+        keywords={pageMetadata.keywords}
+        url={pageMetadata.url}
+        imageUrl={pageMetadata.imageUrl}
+        type={pageMetadata.type}
+        siteName="ToolUp Store"
+        twitterHandle="@toolupstore"
+        locale="en_NG"
+        alternateLocale="en_US"
+        // Add tags based on current filters
+        tags={[
+          ...(selectedCategory ? [selectedCategory] : []),
+          ...(searchQuery ? [searchQuery] : []),
+          'electronics', 'gadgets', 'accessories'
+        ]}
+      />
 
       <Header />
 
@@ -482,7 +541,10 @@ export default function Home() {
                       <SidebarAd adSlot={item.adSlot} size="medium" />
                     ) : null
                   ) : (
-                    <ProductCard product={item} onViewImage={handleOpenImageModal} />
+                    <ProductCard 
+                      product={item} 
+                      onViewImage={handleOpenImageModal}
+                    />
                   )}
                 </div>
               ))}

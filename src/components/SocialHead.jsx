@@ -12,124 +12,393 @@ export default function SocialHead({
     currency = 'NGN',
     availability = 'in stock',
     productCategory,
-    brand = 'ToolUp Store'
+    brand = 'ToolUp Store',
+    keywords,
+    author = 'ToolUp Store',
+    locale = 'en_NG',
+    alternateLocale = 'en_US',
+    productSKU,
+    productCondition = 'new',
+    rating,
+    ratingCount,
+    publishedTime,
+    modifiedTime,
+    section,
+    tags = []
 }) {
-    // Ensure we have a proper base URL
+    // Ensure we have proper URLs
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.toolup.store';
     
-    // Ensure URLs are absolute and properly formatted
-    const absoluteImageUrl = imageUrl?.startsWith('http') 
-        ? imageUrl 
-        : `${baseUrl}${imageUrl || '/og-default.jpg'}`;
+    // Enhanced image URL handling for better social media support
+    const getOptimizedImageUrl = (originalUrl) => {
+        if (!originalUrl || originalUrl === 'undefined') {
+            return `${baseUrl}/logo-2.png`;
+        }
+
+        // Handle Google Drive URLs
+        if (originalUrl.includes('drive.google.com')) {
+            const fileIdMatch = originalUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+            if (fileIdMatch) {
+                return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
+            }
+        }
+
+        // Handle relative URLs
+        if (originalUrl.startsWith('/')) {
+            return `${baseUrl}${originalUrl}`;
+        }
+
+        // Handle URLs without protocol
+        if (!originalUrl.startsWith('http')) {
+            return `${baseUrl}/${originalUrl}`;
+        }
+
+        return originalUrl;
+    };
+
+    const absoluteImageUrl = getOptimizedImageUrl(imageUrl);
     
     const absoluteUrl = url?.startsWith('http') 
         ? url 
-        : `${baseUrl}${url || ''}`;
+        : url?.startsWith('/')
+            ? `${baseUrl}${url}`
+            : `${baseUrl}/${url || ''}`;
 
-    // Ensure description is optimal length and ends properly
-    const cleanDescription = description?.length > 160 
+    // Optimize description for different platforms with better formatting
+    const shortDescription = description?.length > 160 
         ? `${description.substring(0, 157)}...`
-        : description || `Discover quality tools at ${siteName}`;
+        : description || `Discover quality tools and equipment at ${siteName}. Professional-grade products for all your needs.`;
+    
+    const longDescription = description?.length > 300 
+        ? `${description.substring(0, 297)}...`
+        : description || shortDescription;
 
-    // Generate structured data for better SEO
+    // Enhanced WhatsApp-specific description
+    const whatsAppDescription = type === 'product' && price 
+        ? `${title} - ${formatPrice(price, currency)} | ${shortDescription}`
+        : shortDescription;
+
+    // Price formatting helper
+    const formatPrice = (priceValue, curr) => {
+        if (!priceValue) return '';
+        const symbol = curr === 'NGN' ? '₦' : '$';
+        return `${symbol}${Number(priceValue).toLocaleString()}`;
+    };
+
+    // Generate comprehensive structured data
     const structuredData = {
         "@context": "https://schema.org",
         "@type": type === 'product' ? 'Product' : 'WebSite',
         "name": title,
-        "description": cleanDescription,
+        "description": shortDescription,
         "url": absoluteUrl,
         "image": absoluteImageUrl,
-        ...(type === 'product' && price && {
+        ...(type === 'product' && {
+            "@id": absoluteUrl,
+            "sku": productSKU || `TOOL-${Date.now()}`,
             "brand": {
                 "@type": "Brand",
                 "name": brand
             },
             "category": productCategory,
+            "itemCondition": `https://schema.org/${productCondition.charAt(0).toUpperCase() + productCondition.slice(1)}Condition`,
+            ...(rating && {
+                "aggregateRating": {
+                    "@type": "AggregateRating",
+                    "ratingValue": rating,
+                    "reviewCount": ratingCount || 1
+                }
+            }),
             "offers": {
                 "@type": "Offer",
+                "url": absoluteUrl,
                 "price": price,
                 "priceCurrency": currency,
                 "availability": availability === 'in stock' 
                     ? "https://schema.org/InStock" 
-                    : "https://schema.org/OutOfStock",
+                    : availability === 'out of stock'
+                        ? "https://schema.org/OutOfStock"
+                        : "https://schema.org/LimitedAvailability",
                 "seller": {
                     "@type": "Organization",
-                    "name": siteName
+                    "name": siteName,
+                    "url": baseUrl,
+                    "logo": `${baseUrl}/logo-2.png`
+                },
+                "priceValidUntil": new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                "itemCondition": `https://schema.org/${productCondition.charAt(0).toUpperCase() + productCondition.slice(1)}Condition`,
+                "shippingDetails": {
+                    "@type": "OfferShippingDetails",
+                    "shippingRate": {
+                        "@type": "MonetaryAmount",
+                        "value": "0",
+                        "currency": currency
+                    },
+                    "shippingDestination": {
+                        "@type": "DefinedRegion",
+                        "addressCountry": "NG"
+                    },
+                    "deliveryTime": {
+                        "@type": "ShippingDeliveryTime",
+                        "handlingTime": {
+                            "@type": "QuantitativeValue",
+                            "minValue": 0,
+                            "maxValue": 1,
+                            "unitCode": "DAY"
+                        },
+                        "transitTime": {
+                            "@type": "QuantitativeValue",
+                            "minValue": 1,
+                            "maxValue": 5,
+                            "unitCode": "DAY"
+                        }
+                    }
+                }
+            }
+        }),
+        ...(type === 'website' && {
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": `${baseUrl}/search?q={search_term_string}`,
+                "query-input": "required name=search_term_string"
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": siteName,
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": `${baseUrl}/logo-2.png`
                 }
             }
         })
     };
 
+    // BreadcrumbList structured data
+    const breadcrumbData = type === 'product' && productCategory ? {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": baseUrl
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": productCategory,
+                "item": `${baseUrl}/category/${productCategory.toLowerCase().replace(/\s+/g, '-')}`
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": title,
+                "item": absoluteUrl
+            }
+        ]
+    } : null;
+
+    // Generate keywords
+    const defaultKeywords = [
+        'tools', 'equipment', 'professional tools', 'Port Harcourt', 'Nigeria',
+        'toolup store', 'quality tools', 'hardware', 'construction tools'
+    ];
+    
+    const productKeywords = type === 'product' ? [
+        title.toLowerCase(),
+        productCategory?.toLowerCase(),
+        brand?.toLowerCase(),
+        ...tags
+    ].filter(Boolean) : [];
+    
+    const allKeywords = [...new Set([...productKeywords, ...defaultKeywords, ...(keywords || [])])];
+
     return (
         <Head>
-            {/* Essential Meta Tags */}
+            {/* Primary Meta Tags */}
             <title>{title}</title>
-            <meta name="description" content={cleanDescription} />
-            <meta name="robots" content="index, follow" />
+            <meta name="title" content={title} />
+            <meta name="description" content={shortDescription} />
+            <meta name="keywords" content={allKeywords.join(', ')} />
+            <meta name="author" content={author} />
+            <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+            <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+            <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
             <link rel="canonical" href={absoluteUrl} />
+            
+            {/* Alternate language versions */}
+            <link rel="alternate" hrefLang={locale} href={absoluteUrl} />
+            {alternateLocale && <link rel="alternate" hrefLang={alternateLocale} href={absoluteUrl} />}
+            <link rel="alternate" hrefLang="x-default" href={absoluteUrl} />
 
-            {/* Open Graph Meta Tags - Essential for Facebook, WhatsApp, LinkedIn */}
+            {/* Enhanced Open Graph / Facebook Meta Tags for better WhatsApp support */}
+            <meta property="og:type" content={type} />
+            <meta property="og:url" content={absoluteUrl} />
             <meta property="og:title" content={title} />
-            <meta property="og:description" content={cleanDescription} />
+            <meta property="og:description" content={longDescription} />
             <meta property="og:image" content={absoluteImageUrl} />
             <meta property="og:image:secure_url" content={absoluteImageUrl} />
+            <meta property="og:image:type" content="image/jpeg" />
             <meta property="og:image:width" content="1200" />
             <meta property="og:image:height" content="630" />
             <meta property="og:image:alt" content={title} />
-            <meta property="og:image:type" content="image/png" />
-            <meta property="og:url" content={absoluteUrl} />
-            <meta property="og:type" content={type} />
             <meta property="og:site_name" content={siteName} />
-            <meta property="og:locale" content="en_US" />
+            <meta property="og:locale" content={locale} />
+            {alternateLocale && <meta property="og:locale:alternate" content={alternateLocale} />}
+            
+            {/* WhatsApp specific enhancements */}
+            <meta property="og:determiner" content="the" />
+            <meta property="og:rich_attachment" content="true" />
+            
+            {/* Article metadata for blog posts */}
+            {publishedTime && <meta property="article:published_time" content={publishedTime} />}
+            {modifiedTime && <meta property="article:modified_time" content={modifiedTime} />}
+            {section && <meta property="article:section" content={section} />}
+            {tags.length > 0 && tags.map((tag, index) => (
+                <meta key={index} property="article:tag" content={tag} />
+            ))}
 
-            {/* Product-specific Open Graph tags */}
-            {type === 'product' && price && (
+            {/* Enhanced Product-specific Open Graph tags */}
+            {type === 'product' && (
                 <>
                     <meta property="product:price:amount" content={price} />
                     <meta property="product:price:currency" content={currency} />
                     <meta property="product:availability" content={availability} />
+                    <meta property="product:condition" content={productCondition} />
                     <meta property="product:brand" content={brand} />
                     {productCategory && <meta property="product:category" content={productCategory} />}
+                    {productSKU && <meta property="product:retailer_item_id" content={productSKU} />}
+                    {rating && <meta property="product:rating" content={rating} />}
+                    {/* Enhanced product description for WhatsApp */}
+                    <meta property="og:description" content={whatsAppDescription} />
                 </>
             )}
 
-            {/* Twitter Card Meta Tags - Essential for Twitter */}
+            {/* Twitter Card Meta Tags */}
             <meta name="twitter:card" content="summary_large_image" />
-            <meta name="twitter:site" content={twitterHandle} />
-            <meta name="twitter:creator" content={twitterHandle} />
+            <meta name="twitter:url" content={absoluteUrl} />
             <meta name="twitter:title" content={title} />
-            <meta name="twitter:description" content={cleanDescription} />
+            <meta name="twitter:description" content={shortDescription} />
             <meta name="twitter:image" content={absoluteImageUrl} />
             <meta name="twitter:image:alt" content={title} />
-
-            {/* Additional Twitter tags for products */}
+            <meta name="twitter:site" content={twitterHandle} />
+            <meta name="twitter:creator" content={twitterHandle} />
+            
+            {/* Enhanced Twitter product labels */}
             {type === 'product' && price && (
                 <>
                     <meta name="twitter:label1" content="Price" />
-                    <meta name="twitter:data1" content={`${currency} ${price?.toLocaleString()}`} />
+                    <meta name="twitter:data1" content={formatPrice(price, currency)} />
                     <meta name="twitter:label2" content="Availability" />
-                    <meta name="twitter:data2" content={availability} />
+                    <meta name="twitter:data2" content={availability === 'in stock' ? 'In Stock ✓' : 'Out of Stock'} />
                 </>
             )}
 
-            {/* Telegram specific meta tags */}
+            {/* WhatsApp specific optimizations */}
+            <meta property="og:image:secure_url" content={absoluteImageUrl} />
+            <meta property="og:image:type" content="image/jpeg" />
+            
+            {/* Telegram specific */}
             <meta property="telegram:image" content={absoluteImageUrl} />
+            <meta name="telegram:channel" content="@toolupstore" />
 
-            {/* Additional meta tags for better social sharing */}
-            <meta name="theme-color" content="#2563EB" />
+            {/* LinkedIn specific */}
+            <meta property="og:image:secure_url" content={absoluteImageUrl} />
+            
+            {/* Enhanced Pinterest Rich Pins */}
+            <meta property="og:see_also" content={baseUrl} />
+            {type === 'product' && (
+                <>
+                    <meta property="og:price:amount" content={price} />
+                    <meta property="og:price:currency" content={currency} />
+                    <meta property="og:availability" content={availability} />
+                    <meta name="pinterest:price" content={formatPrice(price, currency)} />
+                    <meta name="pinterest:availability" content={availability} />
+                </>
+            )}
+
+            {/* Apple specific meta tags */}
             <meta name="apple-mobile-web-app-title" content={siteName} />
-            <meta name="application-name" content={siteName} />
+            <meta name="apple-mobile-web-app-capable" content="yes" />
+            <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+            
+            {/* Microsoft specific meta tags */}
+            <meta name="msapplication-TileColor" content="#2563EB" />
+            <meta name="msapplication-config" content="/browserconfig.xml" />
+            <meta name="theme-color" content="#2563EB" />
 
-            {/* Structured Data for rich snippets */}
+            {/* Additional SEO meta tags */}
+            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+            <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+            <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+            <meta name="format-detection" content="telephone=no" />
+            <meta name="HandheldFriendly" content="True" />
+            <meta name="MobileOptimized" content="320" />
+            
+            {/* DNS Prefetch for performance */}
+            <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+            <link rel="dns-prefetch" href="//www.googletagmanager.com" />
+            
+            {/* Preconnect for critical resources */}
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            
+            {/* Enhanced for WhatsApp crawler */}
+            <meta name="whatsapp:image" content={absoluteImageUrl} />
+            <meta name="whatsapp:title" content={title} />
+            <meta name="whatsapp:description" content={whatsAppDescription} />
+            
+            {/* Structured Data */}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
                     __html: JSON.stringify(structuredData)
                 }}
             />
+            
+            {/* Breadcrumb Structured Data */}
+            {breadcrumbData && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{
+                        __html: JSON.stringify(breadcrumbData)
+                    }}
+                />
+            )}
 
-            {/* Facebook App ID (uncomment and add your actual app ID) */}
-            {/* <meta property="fb:app_id" content="YOUR_FB_APP_ID" /> */}
+            {/* Organization Structured Data (for all pages) */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "Organization",
+                        "name": siteName,
+                        "url": baseUrl,
+                        "logo": `${baseUrl}/logo-2.png`,
+                        "sameAs": [
+                            "https://twitter.com/toolupstore",
+                            "https://facebook.com/toolupstore",
+                            "https://instagram.com/toolupstore"
+                        ],
+                        "address": {
+                            "@type": "PostalAddress",
+                            "streetAddress": "Your Street Address",
+                            "addressLocality": "Port Harcourt",
+                            "addressRegion": "Rivers State",
+                            "postalCode": "500001",
+                            "addressCountry": "NG"
+                        },
+                        "contactPoint": {
+                            "@type": "ContactPoint",
+                            "telephone": "+234-XXX-XXXX-XXX",
+                            "contactType": "customer service",
+                            "areaServed": "NG",
+                            "availableLanguage": ["English"]
+                        }
+                    })
+                }}
+            />
         </Head>
     );
 }

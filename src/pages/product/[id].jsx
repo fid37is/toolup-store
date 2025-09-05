@@ -38,44 +38,6 @@ export default function ProductDetail() {
     const isOutOfStock = quantityNum === 0;
     const isLowStock = quantityNum > 0 && quantityNum <= 4;
 
-    // Ad data for product detail page
-    const adData = {
-        bannerTop: {
-            title: "🛠️ Complete Your Toolkit - Browse Related Products",
-            description: "Find complementary tools and accessories for your projects",
-            link: "/",
-            cta: "Browse All",
-            image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=32&h=32&fit=crop"
-        },
-        sidebar: {
-            title: "Professional Tool Care",
-            description: "Keep your tools in perfect condition with maintenance products",
-            link: "https://example.com/tool-care",
-            cta: "Shop Care Products",
-            backgroundImage: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400&h=300&fit=crop",
-            icon: "🔧"
-        },
-        native: {
-            title: "Recommended: Safety Equipment Bundle",
-            description: "Essential safety gear for any workshop. Protect yourself while using professional tools.",
-            category: "Safety Equipment",
-            image: "https://images.unsplash.com/photo-1576086213369-97a306d36557?w=400&h=300&fit=crop",
-            link: "https://example.com/safety-bundle",
-            cta: "View Bundle",
-            features: ["PPE Kit", "First Aid"],
-            rating: "4.7",
-            verified: true
-        },
-        floating: {
-            title: "Tool Warranty Extended",
-            description: "Protect your investment with extended warranty coverage",
-            image: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=80&h=80&fit=crop",
-            link: "https://example.com/warranty",
-            cta: "Learn More",
-            icon: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=32&h=32&fit=crop"
-        }
-    };
-
     // Check authentication status on mount
     useEffect(() => {
         const checkAuth = () => {
@@ -402,7 +364,7 @@ export default function ProductDetail() {
             {/* Top Banner Ad */}
             {shouldShowAd('product-banner-top') && (
                 <BannerAd 
-                    adData={adData.bannerTop} 
+                    adSlot="9492804374"
                     position="top"
                     onClose={() => closeAd('product-banner-top')} 
                 />
@@ -546,7 +508,7 @@ export default function ProductDetail() {
                         {/* Native Ad in Description Area */}
                         {shouldShowAd('product-native') && (
                             <div className="mt-8">
-                                <NativeAd adData={adData.native} />
+                                <NativeAd adSlot="1781017078" />
                             </div>
                         )}
                     </div>
@@ -555,7 +517,7 @@ export default function ProductDetail() {
                     <div className="lg:col-span-1 space-y-6">
                         {/* Sidebar Ad */}
                         {shouldShowAd('product-sidebar') && (
-                            <SidebarAd adData={adData.sidebar} size="large" />
+                            <SidebarAd adSlot="4159768405" size="large" />
                         )}
 
                         {/* Additional product info or related products could go here */}
@@ -577,7 +539,7 @@ export default function ProductDetail() {
             {/* Floating Ad */}
             {shouldShowAd('product-floating') && (
                 <FloatingAd 
-                    adData={adData.floating}
+                    adSlot="4159768405"
                     onClose={() => closeAd('product-floating')} 
                 />
             )}

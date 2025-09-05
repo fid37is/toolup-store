@@ -55,10 +55,8 @@ export const BannerAd = ({ adSlot, position = 'top', onClose }) => {
   );
 };
 
-// Sidebar Ad Component - Appears between products
+// Sidebar Ad Component - Removed unused isHovered state
 export const SidebarAd = ({ adSlot, size = 'medium' }) => {
-  const [setIsHovered] = useState(false);
-
   useEffect(() => {
     if (typeof window !== 'undefined' && window.adsbygoogle) {
       try {
@@ -78,8 +76,6 @@ export const SidebarAd = ({ adSlot, size = 'medium' }) => {
   return (
     <div
       className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-md transition-all duration-300 ${sizeClasses[size]}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative h-full">
         <div className="absolute top-2 left-2 z-10 bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full font-medium">
@@ -100,10 +96,8 @@ export const SidebarAd = ({ adSlot, size = 'medium' }) => {
   );
 };
 
-// Native Ad Component - Looks like a product card
+// Native Ad Component - Removed unused isHovered state
 export const NativeAd = ({ adSlot }) => {
-  const [setIsHovered] = useState(false);
-
   useEffect(() => {
     if (typeof window !== 'undefined' && window.adsbygoogle) {
       try {
@@ -115,11 +109,7 @@ export const NativeAd = ({ adSlot }) => {
   }, []);
 
   return (
-    <div
-      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-lg transition-all duration-300 h-full"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-lg transition-all duration-300 h-full">
       <div className="absolute top-2 right-2 z-10 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium border border-yellow-200">
         Sponsored
       </div>
@@ -137,7 +127,7 @@ export const NativeAd = ({ adSlot }) => {
   );
 };
 
-// Floating Ad Component - Appears after scroll
+// Floating Ad Component - This one keeps its state as it's actually used
 export const FloatingAd = ({ adSlot, onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
