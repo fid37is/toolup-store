@@ -1,13 +1,19 @@
+
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 
 // Banner Ad Component - Top/Bottom placement
-export const BannerAd = ({ adSlot, position = 'top', onClose }) => {
+export const BannerAd = ({ position = 'top', onClose }) => {
   const [isVisible, setIsVisible] = useState(true);
 
   const handleClose = () => {
     setIsVisible(false);
     if (onClose) onClose();
+  };
+
+  // Get the correct ad slot based on position
+  const getAdSlot = () => {
+    return position === 'top' ? '9492804374' : '9172421936';
   };
 
   useEffect(() => {
@@ -35,8 +41,8 @@ export const BannerAd = ({ adSlot, position = 'top', onClose }) => {
           <ins
             className="adsbygoogle"
             style={{ display: 'block' }}
-            data-ad-client="ca-pub-YOUR_PUBLISHER_ID"
-            data-ad-slot={adSlot}
+            data-ad-client="ca-pub-3908400190376942"
+            data-ad-slot={getAdSlot()}
             data-ad-format="auto"
             data-full-width-responsive="true"
           ></ins>
@@ -56,7 +62,7 @@ export const BannerAd = ({ adSlot, position = 'top', onClose }) => {
 };
 
 // Sidebar Ad Component - Appears between products
-export const SidebarAd = ({ adSlot, size = 'medium' }) => {
+export const SidebarAd = ({ size = 'medium' }) => {
   const [setIsHovered] = useState(false);
 
   useEffect(() => {
@@ -89,8 +95,8 @@ export const SidebarAd = ({ adSlot, size = 'medium' }) => {
           <ins
             className="adsbygoogle"
             style={{ display: 'block' }}
-            data-ad-client="ca-pub-YOUR_PUBLISHER_ID"
-            data-ad-slot={adSlot}
+            data-ad-client="ca-pub-3908400190376942"
+            data-ad-slot="4159768405"
             data-ad-format="auto"
             data-full-width-responsive="true"
           ></ins>
@@ -101,8 +107,8 @@ export const SidebarAd = ({ adSlot, size = 'medium' }) => {
 };
 
 // Native Ad Component - Looks like a product card
-export const NativeAd = ({ adSlot }) => {
-  const [setIsHovered] = useState(false);
+export const NativeAd = () => {
+  const [ setIsHovered] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.adsbygoogle) {
@@ -116,7 +122,7 @@ export const NativeAd = ({ adSlot }) => {
 
   return (
     <div
-      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-lg transition-all duration-300 h-full"
+      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-lg transition-all duration-300 h-full relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -127,8 +133,8 @@ export const NativeAd = ({ adSlot }) => {
         <ins
           className="adsbygoogle"
           style={{ display: 'block' }}
-          data-ad-client="ca-pub-YOUR_PUBLISHER_ID"
-          data-ad-slot={adSlot}
+          data-ad-client="ca-pub-3908400190376942"
+          data-ad-slot="1781017078"
           data-ad-format="auto"
           data-full-width-responsive="true"
         ></ins>
@@ -137,8 +143,8 @@ export const NativeAd = ({ adSlot }) => {
   );
 };
 
-// Floating Ad Component - Appears after scroll
-export const FloatingAd = ({ adSlot, onClose }) => {
+// Floating Ad Component - Uses sidebar ad slot, appears after scroll
+export const FloatingAd = ({ onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -179,7 +185,7 @@ export const FloatingAd = ({ adSlot, onClose }) => {
       <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
         {isMinimized ? (
           <div
-            className="w-full h-full flex items-center justify-center bg-primary-700 cursor-pointer"
+            className="w-full h-full flex items-center justify-center bg-blue-600 cursor-pointer"
             onClick={() => setIsMinimized(false)}
           >
             <span className="text-white text-xs">Ad</span>
@@ -211,8 +217,8 @@ export const FloatingAd = ({ adSlot, onClose }) => {
               <ins
                 className="adsbygoogle"
                 style={{ display: 'block' }}
-                data-ad-client="ca-pub-YOUR_PUBLISHER_ID"
-                data-ad-slot={adSlot}
+                data-ad-client="ca-pub-3908400190376942"
+                data-ad-slot="4159768405"
                 data-ad-format="auto"
                 data-full-width-responsive="true"
               ></ins>
@@ -223,3 +229,74 @@ export const FloatingAd = ({ adSlot, onClose }) => {
     </div>
   );
 };
+
+// Demo Component to show all ad types
+const AdComponentsDemo = () => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Banner Ad */}
+      <BannerAd position="top" />
+      
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">ToolUp Ad Components Demo</h1>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm">
+              <h2 className="text-xl font-semibold mb-4">Sample Content</h2>
+              <p className="text-gray-600 mb-4">
+                This is sample content to demonstrate how the ad components integrate with your site.
+              </p>
+              
+              {/* Native Ad integrated with content */}
+              <div className="my-6">
+                <NativeAd />
+              </div>
+              
+              <p className="text-gray-600">
+                More content continues here. The native ad blends seamlessly with your content.
+              </p>
+            </div>
+          </div>
+          
+          {/* Sidebar with Ads */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm">
+              <h3 className="text-lg font-semibold mb-4">Sidebar Content</h3>
+              <p className="text-gray-600 text-sm">Regular sidebar content goes here.</p>
+            </div>
+            
+            {/* Sidebar Ad */}
+            <SidebarAd size="medium" />
+            
+            <div className="bg-white p-6 rounded-xl shadow-sm">
+              <h3 className="text-lg font-semibold mb-4">More Sidebar</h3>
+              <p className="text-gray-600 text-sm">Additional sidebar content.</p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Add some height to trigger floating ad */}
+        <div className="mt-16 space-y-8">
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} className="bg-white p-6 rounded-xl shadow-sm">
+              <h3 className="text-lg font-semibold mb-2">Content Section {i + 1}</h3>
+              <p className="text-gray-600">
+                Scroll down to see the floating ad appear. This simulates a long page with lots of content.
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Bottom Banner Ad */}
+      <BannerAd position="bottom" />
+      
+      {/* Floating Ad */}
+      <FloatingAd />
+    </div>
+  );
+};
+
+//
