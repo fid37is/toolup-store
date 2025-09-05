@@ -1,4 +1,5 @@
 // src/pages/api/products/[id].js
+export const runtime = "nodejs";
 export default async function handler(req, res) {
     const { id } = req.query;
 

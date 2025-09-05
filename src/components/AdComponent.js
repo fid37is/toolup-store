@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronRight } from 'lucide-react';
+import { X } from 'lucide-react';
 
 // Banner Ad Component - Top/Bottom placement
 export const BannerAd = ({ adSlot, position = 'top', onClose }) => {
@@ -57,7 +57,7 @@ export const BannerAd = ({ adSlot, position = 'top', onClose }) => {
 
 // Sidebar Ad Component - Appears between products
 export const SidebarAd = ({ adSlot, size = 'medium' }) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [setIsHovered] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.adsbygoogle) {
@@ -102,7 +102,7 @@ export const SidebarAd = ({ adSlot, size = 'medium' }) => {
 
 // Native Ad Component - Looks like a product card
 export const NativeAd = ({ adSlot }) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [setIsHovered] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.adsbygoogle) {

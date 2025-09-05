@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/api/orders/create.js - OPTIMIZED VERSION
+export const runtime = "nodejs";
 import { google } from 'googleapis';
 import { sendOrderConfirmationEmail } from '../../../services/emailService';
 import crypto from 'crypto';
