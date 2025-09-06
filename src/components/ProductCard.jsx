@@ -131,7 +131,8 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
     const handleCopyLink = () => {
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
                        (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
-        const productUrl = `${baseUrl}/products/${product.id}`;
+        // Using /product/ (singular) to match your working route
+        const productUrl = `${baseUrl}/product/${product.id}`;
         
         navigator.clipboard.writeText(productUrl)
             .then(() => {
@@ -160,7 +161,8 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
                     </div>
                 )}
 
-                <Link href={`/products/${product.id}`} className="block h-full">
+                {/* Keep your original working URL structure: /product/ (singular) */}
+                <Link href={`/product/${product.id}`} className="block h-full">
                     <div 
                         className="h-full bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200"
                         onMouseEnter={() => setIsHovered(true)}
@@ -319,7 +321,7 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
                     isOpen={isShareModalOpen}
                     onClose={closeShareModal}
                     productName={product.name}
-                    shareUrl={`${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store')}/products/${product.id}`}
+                    shareUrl={`${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store')}/product/${product.id}`}
                     imageUrl={product.imageUrl}
                     product={product}
                     buttonPosition={shareButtonRef}

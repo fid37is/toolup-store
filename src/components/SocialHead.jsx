@@ -29,34 +29,12 @@ export default function SocialHead({
     // Ensure we have proper URLs
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.toolup.store';
     
-    // Enhanced image URL handling for better social media support
-    const getOptimizedImageUrl = (originalUrl) => {
-        if (!originalUrl || originalUrl === 'undefined') {
-            return `${baseUrl}/logo-2.png`;
-        }
-
-        // Handle Google Drive URLs
-        if (originalUrl.includes('drive.google.com')) {
-            const fileIdMatch = originalUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-            if (fileIdMatch) {
-                return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
-            }
-        }
-
-        // Handle relative URLs
-        if (originalUrl.startsWith('/')) {
-            return `${baseUrl}${originalUrl}`;
-        }
-
-        // Handle URLs without protocol
-        if (!originalUrl.startsWith('http')) {
-            return `${baseUrl}/${originalUrl}`;
-        }
-
-        return originalUrl;
-    };
-
-    const absoluteImageUrl = getOptimizedImageUrl(imageUrl);
+    // Clean and validate URLs
+    const absoluteImageUrl = imageUrl?.startsWith('http') 
+        ? imageUrl 
+        : imageUrl?.startsWith('/') 
+            ? `${baseUrl}${imageUrl}`
+            : `${baseUrl}/${imageUrl || 'og-default.jpg'}`;
     
     const absoluteUrl = url?.startsWith('http') 
         ? url 
@@ -64,26 +42,14 @@ export default function SocialHead({
             ? `${baseUrl}${url}`
             : `${baseUrl}/${url || ''}`;
 
-    // Optimize description for different platforms with better formatting
+    // Optimize description for different platforms
     const shortDescription = description?.length > 160 
         ? `${description.substring(0, 157)}...`
         : description || `Discover quality tools and equipment at ${siteName}. Professional-grade products for all your needs.`;
     
-    const longDescription = description?.length > 300 
-        ? `${description.substring(0, 297)}...`
+    const longDescription = description?.length > 320 
+        ? `${description.substring(0, 317)}...`
         : description || shortDescription;
-
-    // Enhanced WhatsApp-specific description
-    const whatsAppDescription = type === 'product' && price 
-        ? `${title} - ${formatPrice(price, currency)} | ${shortDescription}`
-        : shortDescription;
-
-    // Price formatting helper
-    const formatPrice = (priceValue, curr) => {
-        if (!priceValue) return '';
-        const symbol = curr === 'NGN' ? '₦' : '$';
-        return `${symbol}${Number(priceValue).toLocaleString()}`;
-    };
 
     // Generate comprehensive structured data
     const structuredData = {
@@ -232,24 +198,20 @@ export default function SocialHead({
             {alternateLocale && <link rel="alternate" hrefLang={alternateLocale} href={absoluteUrl} />}
             <link rel="alternate" hrefLang="x-default" href={absoluteUrl} />
 
-            {/* Enhanced Open Graph / Facebook Meta Tags for better WhatsApp support */}
+            {/* Open Graph / Facebook Meta Tags */}
             <meta property="og:type" content={type} />
             <meta property="og:url" content={absoluteUrl} />
             <meta property="og:title" content={title} />
             <meta property="og:description" content={longDescription} />
             <meta property="og:image" content={absoluteImageUrl} />
             <meta property="og:image:secure_url" content={absoluteImageUrl} />
-            <meta property="og:image:type" content="image/jpeg" />
+            <meta property="og:image:type" content="image/png" />
             <meta property="og:image:width" content="1200" />
             <meta property="og:image:height" content="630" />
             <meta property="og:image:alt" content={title} />
             <meta property="og:site_name" content={siteName} />
             <meta property="og:locale" content={locale} />
             {alternateLocale && <meta property="og:locale:alternate" content={alternateLocale} />}
-            
-            {/* WhatsApp specific enhancements */}
-            <meta property="og:determiner" content="the" />
-            <meta property="og:rich_attachment" content="true" />
             
             {/* Article metadata for blog posts */}
             {publishedTime && <meta property="article:published_time" content={publishedTime} />}
@@ -259,7 +221,7 @@ export default function SocialHead({
                 <meta key={index} property="article:tag" content={tag} />
             ))}
 
-            {/* Enhanced Product-specific Open Graph tags */}
+            {/* Product-specific Open Graph tags */}
             {type === 'product' && (
                 <>
                     <meta property="product:price:amount" content={price} />
@@ -270,8 +232,6 @@ export default function SocialHead({
                     {productCategory && <meta property="product:category" content={productCategory} />}
                     {productSKU && <meta property="product:retailer_item_id" content={productSKU} />}
                     {rating && <meta property="product:rating" content={rating} />}
-                    {/* Enhanced product description for WhatsApp */}
-                    <meta property="og:description" content={whatsAppDescription} />
                 </>
             )}
 
@@ -285,36 +245,34 @@ export default function SocialHead({
             <meta name="twitter:site" content={twitterHandle} />
             <meta name="twitter:creator" content={twitterHandle} />
             
-            {/* Enhanced Twitter product labels */}
+            {/* Twitter product labels */}
             {type === 'product' && price && (
                 <>
                     <meta name="twitter:label1" content="Price" />
-                    <meta name="twitter:data1" content={formatPrice(price, currency)} />
+                    <meta name="twitter:data1" content={`₦${price?.toLocaleString('en-NG')}`} />
                     <meta name="twitter:label2" content="Availability" />
                     <meta name="twitter:data2" content={availability === 'in stock' ? 'In Stock ✓' : 'Out of Stock'} />
                 </>
             )}
 
-            {/* WhatsApp specific optimizations */}
-            <meta property="og:image:secure_url" content={absoluteImageUrl} />
-            <meta property="og:image:type" content="image/jpeg" />
-            
+            {/* WhatsApp specific (uses Open Graph) */}
+            <meta property="og:image:type" content="image/png" />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
+
             {/* Telegram specific */}
             <meta property="telegram:image" content={absoluteImageUrl} />
-            <meta name="telegram:channel" content="@toolupstore" />
 
             {/* LinkedIn specific */}
             <meta property="og:image:secure_url" content={absoluteImageUrl} />
             
-            {/* Enhanced Pinterest Rich Pins */}
+            {/* Pinterest Rich Pins */}
             <meta property="og:see_also" content={baseUrl} />
             {type === 'product' && (
                 <>
                     <meta property="og:price:amount" content={price} />
                     <meta property="og:price:currency" content={currency} />
                     <meta property="og:availability" content={availability} />
-                    <meta name="pinterest:price" content={formatPrice(price, currency)} />
-                    <meta name="pinterest:availability" content={availability} />
                 </>
             )}
 
@@ -342,11 +300,6 @@ export default function SocialHead({
             
             {/* Preconnect for critical resources */}
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            
-            {/* Enhanced for WhatsApp crawler */}
-            <meta name="whatsapp:image" content={absoluteImageUrl} />
-            <meta name="whatsapp:title" content={title} />
-            <meta name="whatsapp:description" content={whatsAppDescription} />
             
             {/* Structured Data */}
             <script
