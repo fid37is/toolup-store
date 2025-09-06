@@ -18,16 +18,11 @@ export default function ShareModal({
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageError, setImageError] = useState(false);
 
-    // Use store logo as placeholder for better branding
     const PLACEHOLDER_IMAGE = '/logo-2.png';
 
-    // Simplified image URL logic - just use the first available valid URL
+    // Process image URL with Google Drive handling
     useEffect(() => {
         if (isOpen) {
-            console.log('ShareModal - Product data:', product);
-            console.log('ShareModal - Image URL prop:', imageUrl);
-            
-            // Priority order for image selection
             const imageUrls = [
                 product?.imageUrl,
                 imageUrl,
@@ -39,12 +34,10 @@ export default function ShareModal({
                 url.trim() !== ''
             );
 
-            console.log('ShareModal - Available image URLs:', imageUrls);
-
             if (imageUrls.length > 0) {
                 let selectedUrl = imageUrls[0];
                 
-                // Handle Google Drive URLs
+                // Handle Google Drive URLs for social media compatibility
                 if (selectedUrl.includes('drive.google.com')) {
                     const fileIdMatch = selectedUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
                     if (fileIdMatch) {
@@ -52,65 +45,57 @@ export default function ShareModal({
                     }
                 }
                 
-                // Ensure proper URL format
-                if (!selectedUrl.startsWith('http') && !selectedUrl.startsWith('/')) {
-                    selectedUrl = `/${selectedUrl}`;
+                // Ensure absolute URL
+                if (!selectedUrl.startsWith('http')) {
+                    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                                   (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
+                    selectedUrl = selectedUrl.startsWith('/') ? `${baseUrl}${selectedUrl}` : `${baseUrl}/${selectedUrl}`;
                 }
                 
-                console.log('ShareModal - Selected image URL:', selectedUrl);
                 setFinalImageUrl(selectedUrl);
             } else {
-                console.log('ShareModal - No valid image found, using placeholder');
                 setFinalImageUrl(PLACEHOLDER_IMAGE);
             }
         }
     }, [product?.imageUrl, product?.image, imageUrl, isOpen]);
 
-    // Generate safe URL with proper fallbacks
+    // Generate consistent share URL - ALWAYS USE /product/ (singular)
     useEffect(() => {
         if (isOpen) {
-            let url = shareUrl;
+            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                           (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
 
-            // If shareUrl is provided and valid, use it
-            if (url && url !== 'undefined' && !url.includes('undefined') && url.startsWith('http')) {
-                setSafeShareUrl(url);
-                return;
+            let url;
+
+            // Priority 1: Use provided shareUrl if it's valid, absolute, and uses correct route
+            if (shareUrl && shareUrl.startsWith('http') && !shareUrl.includes('undefined') && shareUrl.includes('/product/')) {
+                url = shareUrl;
             }
-
-            // Generate URL if not provided or invalid
-            if (typeof window !== 'undefined') {
-                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-
-                if (product?.id) {
-                    url = `${baseUrl}/products/${product.id}`;
-                } else if (product?.slug) {
-                    url = `${baseUrl}/products/${product.slug}`;
+            // Priority 2: Always construct consistent URL with /product/ (singular)
+            else if (product?.id) {
+                url = `${baseUrl}/product/${product.id}`;
+            }
+            // Priority 3: Try to extract product ID from current URL if available
+            else if (typeof window !== 'undefined') {
+                const currentPath = window.location.pathname;
+                const productIdMatch = currentPath.match(/\/products?\/([^\/\?]+)/);
+                if (productIdMatch) {
+                    const productId = productIdMatch[1];
+                    url = `${baseUrl}/product/${productId}`;
                 } else {
-                    // Extract product ID from current URL
-                    const currentPath = window.location.pathname;
-                    const pathMatch = currentPath.match(/\/products?\/([^\/\?]+)/);
-                    if (pathMatch) {
-                        url = `${baseUrl}/products/${pathMatch[1]}`;
-                    } else {
-                        url = window.location.href.split('#')[0].split('?')[0];
-                    }
+                    url = baseUrl;
                 }
-            } else {
-                // Server-side fallback
-                const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.toolup.store';
-                url = product?.id ? `${baseUrl}/products/${product.id}` : baseUrl;
+            }
+            // Priority 4: Ultimate fallback
+            else {
+                url = baseUrl;
             }
 
-            // Final validation
-            if (url && !url.includes('undefined')) {
-                setSafeShareUrl(url);
-            } else {
-                setSafeShareUrl(typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
-            }
+            setSafeShareUrl(url);
         }
-    }, [isOpen, shareUrl, product?.id, product?.slug]);
+    }, [isOpen, shareUrl, product?.id]);
 
-    // Handle click outside to close
+    // Close modal handlers
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (modalRef.current && !modalRef.current.contains(event.target)) {
@@ -135,11 +120,10 @@ export default function ShareModal({
         };
     }, [isOpen, onClose]);
 
-    // Generate rich sharing text - works for all users
     const generateShareText = (platform) => {
         const baseText = `Check out ${productName || 'this product'} at ToolUp Store!`;
         const priceText = product?.price ? ` Only ₦${product.price.toLocaleString()}` : '';
-        const stockText = product?.quantity > 0 ? ' - In Stock!' : ' - Limited Availability!';
+        const stockText = Number(product?.quantity) > 0 ? ' - In Stock!' : ' - Limited Availability!';
 
         switch (platform) {
             case 'twitter':
@@ -157,7 +141,6 @@ export default function ShareModal({
         }
     };
 
-    // Function to handle social media sharing
     const handleSocialShare = (platform) => {
         if (!safeShareUrl) {
             console.error('No valid share URL available');
@@ -201,12 +184,8 @@ export default function ShareModal({
         }
     };
 
-    // Enhanced native sharing - works for all users
     const handleNativeShare = async () => {
-        if (!safeShareUrl) {
-            console.error('No valid share URL available');
-            return;
-        }
+        if (!safeShareUrl) return;
 
         if (navigator.share) {
             try {
@@ -225,12 +204,8 @@ export default function ShareModal({
         }
     };
 
-    // Enhanced copy link function
     const handleCopyLink = async () => {
-        if (!safeShareUrl) {
-            console.error('No valid share URL available');
-            return;
-        }
+        if (!safeShareUrl) return;
 
         try {
             await navigator.clipboard.writeText(safeShareUrl);
@@ -238,6 +213,7 @@ export default function ShareModal({
                 onCopyLink();
             }
         } catch (error) {
+            // Fallback for older browsers
             const textArea = document.createElement('textarea');
             textArea.value = safeShareUrl;
             document.body.appendChild(textArea);
@@ -260,27 +236,35 @@ export default function ShareModal({
         setImageError(true);
         setImageLoaded(false);
         
-        // Only set to placeholder if not already using it
         if (e.target.src !== PLACEHOLDER_IMAGE && !e.target.src.includes('logo-2.png')) {
-            console.log('Switching to placeholder image');
             setFinalImageUrl(PLACEHOLDER_IMAGE);
         }
     };
 
-    // Only render if open and we have a valid URL
     if (!isOpen || typeof window === 'undefined' || !safeShareUrl) {
         return null;
     }
 
-    // Calculate position based on button location
     const getModalPosition = () => {
         if (!buttonPosition) {
             return { top: '80px', right: '16px' };
         }
 
+        const viewportWidth = window.innerWidth;
+        const modalWidth = 320; // w-80 = 320px
+        
+        let left = buttonPosition.left - modalWidth + buttonPosition.width;
+        
+        // Prevent modal from going off screen
+        if (left < 16) {
+            left = 16;
+        } else if (left + modalWidth > viewportWidth - 16) {
+            left = viewportWidth - modalWidth - 16;
+        }
+
         return {
             top: `${buttonPosition.top + buttonPosition.height + 8}px`,
-            left: `${buttonPosition.left - 280 + buttonPosition.width}px`
+            left: `${left}px`
         };
     };
 
@@ -292,7 +276,6 @@ export default function ShareModal({
             style={{
                 top: modalPosition.top,
                 left: modalPosition.left,
-                right: modalPosition.right
             }}
         >
             <div
@@ -326,7 +309,6 @@ export default function ShareModal({
                     <div className="bg-gray-50 rounded-lg p-3 border">
                         <div className="flex items-start space-x-3">
                             <div className="flex-shrink-0 relative">
-                                {/* Image container */}
                                 <div className="w-12 h-12 bg-gray-200 rounded-md overflow-hidden flex items-center justify-center">
                                     {finalImageUrl ? (
                                         <img

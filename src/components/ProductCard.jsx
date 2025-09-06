@@ -25,6 +25,30 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
     const hasDiscount = product.originalPrice && product.originalPrice > product.price;
     const discountPercentage = hasDiscount ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
 
+    // Generate consistent product URL
+    const getProductUrl = () => {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                       (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
+        return `${baseUrl}/product/${product.id}`;
+    };
+
+    // Process image URL for better compatibility
+    const getProcessedImageUrl = () => {
+        let imageUrl = product.imageUrl;
+        
+        if (!imageUrl) return '/placeholder-product.jpg';
+        
+        // Handle Google Drive URLs
+        if (imageUrl.includes('drive.google.com')) {
+            const fileIdMatch = imageUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+            if (fileIdMatch) {
+                return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
+            }
+        }
+        
+        return imageUrl;
+    };
+
     const handleAddToWishlist = async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -129,10 +153,7 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
     };
 
     const handleCopyLink = () => {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
-                       (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store');
-        // Using /product/ (singular) to match your working route
-        const productUrl = `${baseUrl}/product/${product.id}`;
+        const productUrl = getProductUrl();
         
         navigator.clipboard.writeText(productUrl)
             .then(() => {
@@ -140,15 +161,25 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
                 closeShareModal();
             })
             .catch(() => {
-                notifyEvent('Failed to copy link', 'error');
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = productUrl;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                notifyEvent('Link copied to clipboard!', 'success');
+                closeShareModal();
             });
     };
 
     const handleImageView = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        onViewImage(product.imageUrl || '/placeholder-product.jpg', product.name);
+        onViewImage(getProcessedImageUrl(), product.name);
     };
+
+    const processedImageUrl = getProcessedImageUrl();
 
     return (
         <>
@@ -161,7 +192,7 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
                     </div>
                 )}
 
-                {/* Keep your original working URL structure: /product/ (singular) */}
+                {/* Use consistent /product/ route (singular) */}
                 <Link href={`/product/${product.id}`} className="block h-full">
                     <div 
                         className="h-full bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200"
@@ -188,7 +219,7 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
                             {/* Product Image */}
                             <div className="relative w-full h-full group-hover:scale-105 transition-transform duration-500">
                                 <Image
-                                    src={product.imageUrl || '/placeholder-product.jpg'}
+                                    src={processedImageUrl}
                                     alt={product.name}
                                     className={`object-contain transition-all duration-300 ${
                                         imageLoaded ? 'opacity-100' : 'opacity-0'
@@ -321,8 +352,8 @@ const ProductCard = ({ product, onViewImage, isSponsored = false }) => {
                     isOpen={isShareModalOpen}
                     onClose={closeShareModal}
                     productName={product.name}
-                    shareUrl={`${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://www.toolup.store')}/product/${product.id}`}
-                    imageUrl={product.imageUrl}
+                    shareUrl={getProductUrl()}
+                    imageUrl={processedImageUrl}
                     product={product}
                     buttonPosition={shareButtonRef}
                     onCopyLink={handleCopyLink}
